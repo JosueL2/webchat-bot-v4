@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Chatbot - La Segunda</title>
+    
+    <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
+    <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+
+    <style>
+        /* Estilos para la página de fondo */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+
+        h1 { color: #003366; margin-bottom: 10px; }
+        p { line-height: 1.6; color: #666; }
+        .logo-placeholder { font-weight: bold; color: #003366; font-size: 24px; margin-bottom: 20px; }
+
+        /* --- ESTILOS PERSONALIZADOS DEL CHAT --- */
+        df-messenger {
+            z-index: 999;
+            position: fixed;
+            bottom: 20px; /* Separado del borde inferior */
+            right: 20px;  /* Separado del borde derecho */
+            
+            /* Colores de La Segunda (puedes ajustarlos) */
+            --df-messenger-font-color: #000;
+            --df-messenger-font-family: 'Google Sans', sans-serif;
+            --df-messenger-chat-background: #f3f6fc;
+            --df-messenger-message-user-background: #d3e3fd;
+            --df-messenger-message-bot-background: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="logo-placeholder">LA SEGUNDA SEGUROS</div>
+        <h1>Entorno de Pruebas</h1>
+        <p>Estás probando la versión <strong>v4 del Chatbot de Clientes</strong>.</p>
+        <p>Para interactuar, haz clic en el ícono azul que aparece abajo a la derecha.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <small style="color: #999;">Ambiente de Desarrollo (DESA)</small>
+    </div>
+
+    <df-messenger
+        location="us-east1"
+        project-id="l2-np-dialogflow2-us-es1-desa"
+        agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
+        language-code="es"
+        max-query-length="-1">
+        <df-messenger-chat
+            chat-title="LaSegunda-clientes-v4">
+        </df-messenger-chat>
+    </df-messenger>
+
+</body>
+</html>
