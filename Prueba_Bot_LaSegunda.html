@@ -71,39 +71,38 @@
   const dfMessenger = document.querySelector('df-messenger');
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    // 1. Obtenemos los mensajes de la respuesta (usamos la ruta de CX)
-    const messages = event.detail.response.queryResult.responseMessages;
+    // 1. Usamos ?. para que si 'response' o 'queryResult' no existen, NO explote
+    const messages = event.detail?.response?.queryResult?.responseMessages;
+
+    // Si no hay mensajes o la respuesta es vacía, salimos sin error
+    if (!messages) return;
 
     messages.forEach((msg) => {
-      // 2. ¿Es un mensaje con nuestro formato de 'actions'?
-      if (msg.payload && msg.payload.actions) {
+      // 2. Verificamos de forma segura si hay un payload con acciones
+      if (msg?.payload?.actions) {
         const data = msg.payload;
         const action = data.actions[0];
 
-        // 3. Transformamos el mensaje a 'richContent' (formato oficial)
-        // Al hacerlo aquí, el widget lo renderiza en el orden correcto automáticamente
+        // 3. Transformamos a richContent SIN título
         msg.payload = {
           richContent: [[
             {
               "type": "info",
-              "title": "", // LO DEJAMOS VACÍO: Así eliminamos el título "Cotización"
-              "subtitle": data.text || "" // Aquí va el texto del bot (Siniestro, Póliza, etc.)
+              "title": "", // Título vacío para que no salga "Cotización"
+              "subtitle": data.text || "" 
             },
             {
               "type": "button",
-              "icon": {
-                "type": "link",
-                "color": "#003366" // Color corporativo
-              },
-              "text": action.text || "Ver más", // Texto del botón (Cotizar, Descargar, etc.)
+              "icon": { "type": "link", "color": "#003366" },
+              "text": action.text || "Ver más",
               "link": action.uri
             }
           ]]
         };
 
-        // 4. Limpiamos el texto original para que no se vea duplicado
+        // 4. Borramos el texto original para evitar duplicados
         if (msg.text) delete msg.text;
-        console.log("DEBUG: Mensaje universal transformado con éxito");
+        console.log("DEBUG: Componente transformado con éxito.");
       }
     });
   });
