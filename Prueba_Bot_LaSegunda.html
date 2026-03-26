@@ -6,14 +6,15 @@
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
   <style>
+    body { margin: 0; }
     df-messenger {
       z-index: 999;
       position: fixed;
       top: 0; bottom: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 700px;
-      --df-messenger-chat-window-width: 700px;
+      width: 80%;
+      --df-messenger-chat-window-width: 80vw;
     }
   </style>
 </head>
@@ -29,9 +30,13 @@
 
 <script>
   const dfMessenger = document.querySelector('df-messenger');
+  const seenResponses = new Set();
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    // El payload crudo está en event.detail.raw (antes de ser procesado por DF Messenger)
+    const responseId = event.detail?.raw?.responseId;
+    if (!responseId || seenResponses.has(responseId)) return;
+    seenResponses.add(responseId);
+
     const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
     if (!rawMessages) return;
 
@@ -55,17 +60,17 @@
             }
           ]);
 
-          // Mover el card al lugar correcto (antes del último texto renderizado)
+          // Log para ver la estructura del shadow DOM y encontrar el wrapper
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               try {
                 const chatEl = dfMessenger.querySelector('df-messenger-chat');
                 const chatRoot = chatEl?.shadowRoot;
                 if (!chatRoot) return;
-                const wrapper = chatRoot.querySelector('.message-list-container') ||
-                                chatRoot.querySelector('[class*="message-list"]') ||
-                                chatRoot.querySelector('[class*="messages"]');
+                console.log('[DOM] shadow root children:', Array.from(chatRoot.children).map(el => el.tagName + ' ' + el.className));
+                const wrapper = Array.from(chatRoot.querySelectorAll('*')).find(el => el.children.length >= 2 && el.tagName !== 'STYLE');
                 if (!wrapper) return;
+                console.log('[DOM] wrapper encontrado:', wrapper.tagName, wrapper.className);
                 const children = Array.from(wrapper.children);
                 if (children.length < 2) return;
                 const last = children[children.length - 1];
