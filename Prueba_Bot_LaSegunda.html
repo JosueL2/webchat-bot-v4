@@ -37,57 +37,45 @@
     const dfMessenger = document.querySelector('df-messenger');
     
     dfMessenger.addEventListener('df-response-received', function (event) {
-        console.log("DEBUG: Datos recibidos ->", event.detail);
+        // 1. Entramos a la "Caja Fuerte" (raw) porque el widget filtra los payloads
+        const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
         
-        // Usamos ?. para que si algo no existe, simplemente devuelva 'undefined' y no tire error
-        let messages = event.detail?.response?.queryResult?.responseMessages 
-                       || event.detail?.messages 
-                       || [];
+        console.log("DEBUG: Revisando caja fuerte de mensajes...", rawMessages);
 
-        if (messages.length === 0) {
-            console.log("DEBUG: No se encontraron mensajes procesables.");
-            return;
-        }
+        if (!rawMessages) return;
 
-        for (let i = 0; i < messages.length; i++) {
-            let msg = messages[i];
-            
-            // Buscamos tu payload de acciones (la estructura de tu diagnóstico)
-            // Revisamos si es un objeto payload O si es texto que contiene el JSON
-            let rawData = null;
+        // 2. Buscamos el payload que tenga tus 'actions'
+        rawMessages.forEach(msg => {
+            let data = null;
+
             if (msg.payload && msg.payload.actions) {
-                rawData = msg.payload;
+                data = msg.payload;
             } else if (msg.text && msg.text.text && typeof msg.text.text[0] === 'string' && msg.text.text[0].includes('"actions"')) {
-                try {
-                    rawData = JSON.parse(msg.text.text[0]);
-                } catch (e) { console.error("Error parseando JSON:", e); }
+                try { data = JSON.parse(msg.text.text[0]); } catch (e) {}
             }
 
-            if (rawData && rawData.actions) {
-                console.log("DEBUG: ¡Transformando payload de cotización!");
-                const linkAction = rawData.actions[0];
+            if (data && data.actions) {
+                console.log("DEBUG: ¡LO ENCONTRAMOS EN EL RAW! Transformando...", data);
 
-                // Convertimos al formato oficial 'richContent'
-                messages[i] = {
-                    payload: {
-                        richContent: [[
-                            {
-                                "type": "info",
-                                "title": "Cotización Online 💻",
-                                "subtitle": rawData.text || "Hacé clic abajo para cotizar tu seguro."
-                            },
-                            {
-                                "type": "button",
-                                "icon": { "type": "link", "color": "#003366" },
-                                "text": linkAction.text || "Cotizar",
-                                "link": linkAction.uri
-                            }
-                        ]]
-                    }
-                };
-             }
+                // 3. Creamos el formato de botón
+                const richContent = [{
+                    "type": "info",
+                    "title": "Cotización Online 💻",
+                    "subtitle": data.text || "Hacé clic para cotizar."
+                },
+                {
+                    "type": "button",
+                    "icon": { "type": "link", "color": "#003366" },
+                    "text": data.actions[0].text || "Cotizar",
+                    "link": data.actions[0].uri
+                }];
+
+                // 4. INYECTAMOS el mensaje directamente en el chat
+                // Usamos renderCustomCard para que el widget no lo pueda ignorar
+                dfMessenger.renderCustomCard(richContent);
             }
         });
-    </script>
+    });
+</script>
 </body>
 </html>
