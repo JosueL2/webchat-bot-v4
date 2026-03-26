@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot La Segunda - Test</title>
+    <title>Demo Chatbot - La Segunda</title>
+    
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; }
+        
         df-messenger {
             z-index: 999;
             position: fixed;
@@ -22,7 +25,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Solución: Interceptor de Mensajes sin Títulos</p>
+        <p>Estado: <strong>Versión con Título (Estable)</strong></p>
     </div>
 
     <df-messenger
@@ -30,54 +33,51 @@
         project-id="l2-np-dialogflow2-us-es1-desa"
         agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
         language-code="es">
-        <df-messenger-chat chat-title="Asistente Virtual"></df-messenger-chat>
+        <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
     </df-messenger>
 
     <script>
-      const dfMessenger = document.querySelector('df-messenger');
+        const dfMessenger = document.querySelector('df-messenger');
 
-      dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. CHEQUEO DE SEGURIDAD ABSOLUTO: 
-        // Si no hay detail, response o queryResult, nos vamos sin chillar.
-        const queryResult = event.detail?.response?.queryResult || event.detail?.raw?.queryResult;
-        
-        if (!queryResult || !queryResult.responseMessages) {
-            return; 
-        }
+        dfMessenger.addEventListener('df-response-received', function (event) {
+            console.log("MENSAJE RECIBIDO:", event.detail);
 
-        const messages = queryResult.responseMessages;
+            const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+            if (!rawMessages) return;
 
-        messages.forEach((msg) => {
-          // 2. Buscamos el payload con acciones (links)
-          if (msg.payload && msg.payload.actions) {
-            const data = msg.payload;
-            const action = data.actions[0];
+            rawMessages.forEach(msg => {
+                if (msg.payload && msg.payload.actions) {
+                    const data = msg.payload;
+                    const buttonInfo = data.actions[0];
 
-            // 3. TRANSFORMACIÓN: Lo pasamos a richContent (nativo)
-            // Ponemos title como un espacio vacío " " para que no aparezca el encabezado
-            msg.payload = {
-              richContent: [[
-                {
-                  "type": "info",
-                  "title": " ", 
-                  "subtitle": data.text || ""
-                },
-                {
-                  "type": "button",
-                  "icon": { "type": "link", "color": "#003366" },
-                  "text": action.text || "Ver link",
-                  "link": action.uri
+                    // Usamos la estructura de doble corchete [[...]] que es la que te funcionaba
+                    // Y reponemos el TITLE para que el parser de Google no explote
+                    const customCard = [
+                        [
+                            {
+                                "type": "info",
+                                "title": "Gestión Online 📲", 
+                                "subtitle": data.text || ""
+                            },
+                            {
+                                "type": "button",
+                                "icon": {
+                                    "type": "link",
+                                    "color": "#003366"
+                                },
+                                "text": buttonInfo.text || "Ver más",
+                                "link": buttonInfo.uri
+                            }
+                        ]
+                    ];
+
+                    // Inyectamos la tarjeta con un pequeño delay
+                    setTimeout(() => {
+                        dfMessenger.renderCustomCard(customCard);
+                    }, 200);
                 }
-              ]]
-            };
-
-            // 4. Limpiamos el texto original para que no se duplique
-            if (msg.text) delete msg.text;
-            
-            console.log(">>> Mensaje transformado sin títulos.");
-          }
+            });
         });
-      });
     </script>
 </body>
 </html>
