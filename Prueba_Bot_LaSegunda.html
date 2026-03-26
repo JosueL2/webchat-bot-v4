@@ -22,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Versión corregida (Sin Títulos)</p>
+        <p>Versión Limpia - Sin Títulos</p>
     </div>
 
     <df-messenger
@@ -37,38 +37,36 @@
         const dfMessenger = document.querySelector('df-messenger');
 
         dfMessenger.addEventListener('df-response-received', function (event) {
-            // Buscamos el payload de forma segura
             const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
             if (!rawMessages) return;
 
             rawMessages.forEach(msg => {
                 if (msg.payload && msg.payload.actions) {
-                    console.log("DEBUG: Generando card sin título...");
-
                     const data = msg.payload;
                     const buttonInfo = data.actions[0];
 
-                    // LA SOLUCIÓN: Quitamos el título y usamos un array simple de objetos
-                    // Google espera [ {obj1}, {obj2} ] no [ [ {obj1}, {obj2} ] ]
+                    // Usamos la estructura de DOBLE corchete que te funcionaba antes
+                    // Pero eliminamos la propiedad "title" por completo
                     const customCard = [
-                        {
-                            "type": "info",
-                            "title": "", // Título vacío para eliminar el encabezado negrita
-                            "subtitle": data.text || ""
-                        },
-                        {
-                            "type": "button",
-                            "icon": {
-                                "type": "link",
-                                "color": "#003366"
+                        [
+                            {
+                                "type": "info",
+                                "subtitle": data.text || "" 
                             },
-                            "text": buttonInfo.text || "Cotizar",
-                            "link": buttonInfo.uri
-                        }
+                            {
+                                "type": "button",
+                                "icon": {
+                                    "type": "link",
+                                    "color": "#003366"
+                                },
+                                "text": buttonInfo.text || "Cotizar",
+                                "link": buttonInfo.uri
+                            }
+                        ]
                     ];
 
                     setTimeout(() => {
-                        // Inyectamos la lista de componentes directamente
+                        // Inyectamos la tarjeta
                         dfMessenger.renderCustomCard(customCard);
                     }, 200);
                 }
