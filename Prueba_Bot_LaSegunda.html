@@ -4,22 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demo Chatbot - La Segunda</title>
-    
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
-
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; }
-        h1 { color: #003366; }
-        
         df-messenger {
             z-index: 999;
             position: fixed;
             bottom: 20px;
             right: 20px;
             --df-messenger-font-family: 'Google Sans', sans-serif;
-            --df-messenger-chat-background: #f3f6fc;
         }
     </style>
 </head>
@@ -27,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Soporte activado para Links de Cotización.</p>
+        <p>Link de Cotización Interceptado</p>
     </div>
 
     <df-messenger
@@ -42,39 +37,34 @@
         const dfMessenger = document.querySelector('df-messenger');
         
         dfMessenger.addEventListener('df-response-received', function (event) {
+            // Accedemos a los mensajes que vienen en el JSON que me pasaste
             const messages = event.detail.response.queryResult.responseMessages;
             
             messages.forEach(msg => {
-                let rawData = null;
-
-                if (msg.payload && msg.payload.actions) {
-                    rawData = msg.payload;
-                } else if (msg.text && msg.text.text && msg.text.text[0].includes('"actions"')) {
-                    try {
-                        rawData = JSON.parse(msg.text.text[0]);
-                    } catch (e) { console.error("Error parseando JSON:", e); }
-                }
-
-                if (rawData && rawData.actions) {
-                    const linkAction = rawData.actions[0];
+                // Buscamos EXACTAMENTE la estructura de tu log: msg.payload.actions
+                if (msg.payload && msg.payload.actions && msg.payload.actions.length > 0) {
+                    const data = msg.payload;
+                    const action = data.actions[0];
                     
-                    msg.payload = {
-                        richContent: [[
-                            {
-                                "type": "info",
-                                "title": "Cotizá tu seguro online 💻",
-                                "subtitle": rawData.text || ""
-                            },
-                            {
-                                "type": "button",
-                                "icon": { "type": "link", "color": "#003366" },
-                                "text": linkAction.text || "Cotizar",
-                                "link": linkAction.uri
-                            }
-                        ]]
-                    };
+                    // Transformamos ese objeto en algo que el widget SÍ entienda (richContent)
+                    msg.payload.richContent = [[
+                        {
+                            "type": "info",
+                            "title": "Cotización Online 💻",
+                            "subtitle": data.text || "Hacé clic en el botón de abajo para cotizar tu seguro."
+                        },
+                        {
+                            "type": "button",
+                            "icon": { "type": "link", "color": "#003366" },
+                            "text": action.text || "Cotizar",
+                            "link": action.uri
+                        }
+                    ]];
                     
-                    if (msg.text) delete msg.text;
+                    // Limpiamos los campos viejos para evitar conflictos
+                    delete msg.payload.actions;
+                    delete msg.payload.text;
+                    delete msg.payload.type;
                 }
             });
         });
