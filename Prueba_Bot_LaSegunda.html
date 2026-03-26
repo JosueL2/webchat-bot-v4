@@ -46,43 +46,38 @@
         const action = data.actions[0];
 
         setTimeout(() => {
-          dfMessenger.renderCustomCard([
-            {
-              "type": "info",
-              "title": "",
-              "subtitle": data.text || ""
-            },
-            {
-              "type": "button",
-              "icon": { "type": "link", "color": "#003366" },
-              "text": action.text || "Ver más",
-              "link": action.uri
-            }
-          ]);
-
-          // Log para ver la estructura del shadow DOM y encontrar el wrapper
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              try {
-                const chatEl = dfMessenger.querySelector('df-messenger-chat');
-                const chatRoot = chatEl?.shadowRoot;
-                if (!chatRoot) return;
-                console.log('[DOM] shadow root children:', Array.from(chatRoot.children).map(el => el.tagName + ' ' + el.className));
-                const wrapper = Array.from(chatRoot.querySelectorAll('*')).find(el => el.children.length >= 2 && el.tagName !== 'STYLE');
-                if (!wrapper) return;
-                console.log('[DOM] wrapper encontrado:', wrapper.tagName, wrapper.className);
-                const children = Array.from(wrapper.children);
-                if (children.length < 2) return;
-                const last = children[children.length - 1];
-                const secondLast = children[children.length - 2];
-                wrapper.insertBefore(last, secondLast);
-              } catch (e) {}
-            });
-          });
-        }, 100);
+          injectLinkBubble(
+            `Cotizá tu seguro <a href="${action.uri}" target="_blank" rel="noopener noreferrer" style="color:#003366;font-weight:bold;">acá</a>: Auto, Hogar, Accidentes Personales, Vida, Retiro, Comercio, Bici y Monopatín.😉`
+          );
+        }, 150);
       }
     });
   });
+
+  function injectLinkBubble(html) {
+    try {
+      const chatEl = dfMessenger.querySelector('df-messenger-chat');
+      if (!chatEl?.shadowRoot) return;
+      const chatRoot = chatEl.shadowRoot;
+
+      const allEls = Array.from(chatRoot.querySelectorAll('*'));
+      const container = allEls.reduce((best, el) => {
+        return (el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT' && el.children.length > (best?.children.length || 0)) ? el : best;
+      }, null);
+      if (!container) return;
+
+      const bubble = document.createElement('div');
+      bubble.style.cssText = 'display:flex;padding:4px 16px 4px 8px;justify-content:flex-start;';
+      const inner = document.createElement('div');
+      inner.style.cssText = 'background:#e8f4fd;border-radius:18px 18px 18px 4px;padding:10px 16px;max-width:80%;font-size:14px;color:#333;line-height:1.5;font-family:sans-serif;word-break:break-word;';
+      inner.innerHTML = html;
+      bubble.appendChild(inner);
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    } catch (e) {
+      console.error('[injectLinkBubble]', e);
+    }
+  }
 </script>
 </body>
 </html>
