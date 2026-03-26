@@ -34,48 +34,50 @@
     </df-messenger>
 
     <script>
-    const dfMessenger = document.querySelector('df-messenger');
-    
-    dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. Entramos a la "Caja Fuerte" (raw) porque el widget filtra los payloads
-        const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
-        
-        console.log("DEBUG: Revisando caja fuerte de mensajes...", rawMessages);
+  const dfMessenger = document.querySelector('df-messenger');
 
-        if (!rawMessages) return;
+  dfMessenger.addEventListener('df-response-received', function (event) {
+    // 1. Buscamos en la respuesta 'raw' (la que viene de Google sin filtros)
+    const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
 
-        // 2. Buscamos el payload que tenga tus 'actions'
-        rawMessages.forEach(msg => {
-            let data = null;
+    if (!rawMessages) return;
 
-            if (msg.payload && msg.payload.actions) {
-                data = msg.payload;
-            } else if (msg.text && msg.text.text && typeof msg.text.text[0] === 'string' && msg.text.text[0].includes('"actions"')) {
-                try { data = JSON.parse(msg.text.text[0]); } catch (e) {}
+    rawMessages.forEach(msg => {
+      // 2. Verificamos si el mensaje tiene tu estructura específica de 'actions'
+      if (msg.payload && msg.payload.actions) {
+        console.log("DEBUG: Payload de cotización detectado, forzando renderizado...");
+
+        const data = msg.payload;
+        const buttonInfo = data.actions[0];
+
+        // 3. Creamos la estructura que el chat SÍ entiende
+        const customCard = [
+          [
+            {
+              "type": "info",
+              "title": "Cotización Online 📲",
+              "subtitle": data.text // Aquí ponemos el texto largo de los seguros
+            },
+            {
+              "type": "button",
+              "icon": {
+                "type": "link",
+                "color": "#003366"
+              },
+              "text": buttonInfo.text || "Cotizar",
+              "link": buttonInfo.uri
             }
+          ]
+        ];
 
-            if (data && data.actions) {
-                console.log("DEBUG: ¡LO ENCONTRAMOS EN EL RAW! Transformando...", data);
-
-                // 3. Creamos el formato de botón
-                const richContent = [{
-                    "type": "info",
-                    "title": "Cotización Online 💻",
-                    "subtitle": data.text || "Hacé clic para cotizar."
-                },
-                {
-                    "type": "button",
-                    "icon": { "type": "link", "color": "#003366" },
-                    "text": data.actions[0].text || "Cotizar",
-                    "link": data.actions[0].uri
-                }];
-
-                // 4. INYECTAMOS el mensaje directamente en el chat
-                // Usamos renderCustomCard para que el widget no lo pueda ignorar
-                dfMessenger.renderCustomCard(richContent);
-            }
-        });
+        // 4. Inyectamos la tarjeta en el chat
+        // Usamos un pequeño delay para que aparezca después del texto principal
+        setTimeout(() => {
+          dfMessenger.renderCustomCard(customCard);
+        }, 200);
+      }
     });
+  });
 </script>
 </body>
 </html>
