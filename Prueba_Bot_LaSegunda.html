@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Chatbot - La Segunda (Denunciar Siniestro)</title>
+    <title>Demo Chatbot - La Segunda</title>
     
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
 
     <style>
-        /* Estilos para la página de fondo */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
@@ -34,12 +33,11 @@
         p { line-height: 1.6; color: #666; }
         .logo-placeholder { font-weight: bold; color: #003366; font-size: 24px; margin-bottom: 20px; }
 
-        /* --- ESTILOS PERSONALIZADOS DEL CHAT --- */
         df-messenger {
             z-index: 999;
             position: fixed;
-            bottom: 20px; /* Separado del borde inferior */
-            right: 20px;  /* Separado del borde derecho */
+            bottom: 20px;
+            right: 20px;
             --df-messenger-font-family: 'Google Sans', sans-serif;
             --df-messenger-chat-background: #f3f6fc;
             --df-messenger-message-user-background: #d3e3fd;
@@ -52,10 +50,9 @@
     <div class="container">
         <div class="logo-placeholder">LA SEGUNDA SEGUROS</div>
         <h1>Entorno de Pruebas</h1>
-        <p>Probando el flujo de <strong>Denunciar Siniestro</strong>.</p>
-        <p>Los componentes aparecerán secuencialmente para la demo.</p>
+        <p>Probando versión con <strong>Traductor Universal de Payloads</strong>.</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <small style="color: #999;">Página de Demo Hardcodeada</small>
+        <small style="color: #999;">Ambiente de Desarrollo (DESA)</small>
     </div>
 
     <df-messenger
@@ -68,44 +65,46 @@
     </df-messenger>
 
     <script>
-  const dfMessenger = document.querySelector('df-messenger');
+      const dfMessenger = document.querySelector('df-messenger');
 
-  dfMessenger.addEventListener('df-response-received', function (event) {
-    // 1. Usamos ?. para que si 'response' o 'queryResult' no existen, NO explote
-    const messages = event.detail?.response?.queryResult?.responseMessages;
+      dfMessenger.addEventListener('df-response-received', function (event) {
+        // 1. Verificación ultra-segura
+        if (!event.detail || !event.detail.response) return;
 
-    // Si no hay mensajes o la respuesta es vacía, salimos sin error
-    if (!messages) return;
+        const queryResult = event.detail.response.queryResult;
+        if (!queryResult || !queryResult.responseMessages) return;
 
-    messages.forEach((msg) => {
-      // 2. Verificamos de forma segura si hay un payload con acciones
-      if (msg?.payload?.actions) {
-        const data = msg.payload;
-        const action = data.actions[0];
+        const messages = queryResult.responseMessages;
 
-        // 3. Transformamos a richContent SIN título
-        msg.payload = {
-          richContent: [[
-            {
-              "type": "info",
-              "title": "", // Título vacío para que no salga "Cotización"
-              "subtitle": data.text || "" 
-            },
-            {
-              "type": "button",
-              "icon": { "type": "link", "color": "#003366" },
-              "text": action.text || "Ver más",
-              "link": action.uri
-            }
-          ]]
-        };
+        messages.forEach((msg) => {
+          // 2. Si detectamos el payload con acciones (Siniestro, Cotización, Póliza, etc.)
+          if (msg && msg.payload && msg.payload.actions) {
+            const data = msg.payload;
+            const action = data.actions[0];
 
-        // 4. Borramos el texto original para evitar duplicados
-        if (msg.text) delete msg.text;
-        console.log("DEBUG: Componente transformado con éxito.");
-      }
-    });
-  });
-</script>
+            // 3. Transformamos a richContent SIN título para que sea universal
+            msg.payload = {
+              richContent: [[
+                {
+                  "type": "info",
+                  "title": "", 
+                  "subtitle": data.text || "" 
+                },
+                {
+                  "type": "button",
+                  "icon": { "type": "link", "color": "#003366" },
+                  "text": action.text || "Ver más",
+                  "link": action.uri
+                }
+              ]]
+            };
+
+            // 4. Borramos el texto original para que no se vea el código JSON
+            if (msg.text) delete msg.text;
+            console.log("DEBUG: Payload convertido correctamente.");
+          }
+        });
+      });
+    </script>
 </body>
 </html>
