@@ -40,9 +40,8 @@
         setTimeout(() => {
           dfMessenger.renderCustomCard([
             {
-              "type": "info",
-              "title": "La Segunda Seguros",
-              "subtitle": data.text || ""
+              "type": "description",
+              "text": data.text || ""
             },
             {
               "type": "button",
@@ -51,6 +50,26 @@
               "link": action.uri
             }
           ]);
+
+          // Mover el card al lugar correcto (antes del último texto renderizado)
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              try {
+                const chatEl = dfMessenger.querySelector('df-messenger-chat');
+                const chatRoot = chatEl?.shadowRoot;
+                if (!chatRoot) return;
+                const wrapper = chatRoot.querySelector('.message-list-container') ||
+                                chatRoot.querySelector('[class*="message-list"]') ||
+                                chatRoot.querySelector('[class*="messages"]');
+                if (!wrapper) return;
+                const children = Array.from(wrapper.children);
+                if (children.length < 2) return;
+                const last = children[children.length - 1];
+                const secondLast = children[children.length - 2];
+                wrapper.insertBefore(last, secondLast);
+              } catch (e) {}
+            });
+          });
         }, 100);
       }
     });
