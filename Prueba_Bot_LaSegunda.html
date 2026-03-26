@@ -22,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Versión con Interceptor de Payloads v2</p>
+        <p>Fix de Error de 'queryResult'</p>
     </div>
 
     <df-messenger
@@ -37,22 +37,41 @@
         const dfMessenger = document.querySelector('df-messenger');
         
         dfMessenger.addEventListener('df-response-received', function (event) {
-            console.log("DEBUG: Respuesta recibida de Dialogflow");
+            console.log("DEBUG: Estructura completa recibida:", event.detail);
             
-            // Accedemos a los mensajes directamente en el evento
-            const messages = event.detail.response.queryResult.responseMessages;
-            
+            // Intentamos obtener los mensajes de forma segura (para CX o ES)
+            let messages = [];
+            if (event.detail && event.detail.response && event.detail.response.queryResult) {
+                messages = event.detail.response.queryResult.responseMessages;
+            } else if (event.detail && event.detail.messages) {
+                messages = event.detail.messages;
+            }
+
+            if (!messages || messages.length === 0) {
+                console.log("DEBUG: No se encontraron mensajes en la respuesta.");
+                return;
+            }
+
             for (let i = 0; i < messages.length; i++) {
                 let msg = messages[i];
-                
-                // Verificamos si este mensaje tiene el formato de tu payload custom
-                if (msg.payload && msg.payload.actions) {
-                    console.log("DEBUG: ¡Payload de Cotización detectado!", msg.payload);
-                    
-                    const rawData = msg.payload;
-                    const action = rawData.actions[0];
+                let rawData = null;
 
-                    // REEMPLAZAMOS el mensaje por uno que el widget sí entienda (richContent)
+                // Caso 1: El JSON está en payload.actions
+                if (msg.payload && msg.payload.actions) {
+                    rawData = msg.payload;
+                } 
+                // Caso 2: El JSON está como texto (lo que pasaba antes)
+                else if (msg.text && msg.text.text && msg.text.text[0].includes('"actions"')) {
+                    try {
+                        rawData = JSON.parse(msg.text.text[0]);
+                    } catch (e) { console.error("Error parseando texto como JSON", e); }
+                }
+
+                if (rawData && rawData.actions) {
+                    console.log("DEBUG: Transformando Payload...");
+                    const action = rawData.actions[0];
+                    
+                    // Inyectamos el formato que entiende el widget
                     messages[i] = {
                         payload: {
                             richContent: [[
@@ -70,7 +89,6 @@
                             ]]
                         }
                     };
-                    console.log("DEBUG: Mensaje transformado con éxito.");
                 }
             }
         });
