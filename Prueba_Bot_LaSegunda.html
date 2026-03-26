@@ -2,22 +2,20 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>La Segunda - Fix Final</title>
+  <title>La Segunda - Integración</title>
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
   <style>
     df-messenger {
       z-index: 999;
       position: fixed;
-      --df-messenger-font-color: #000;
-      --df-messenger-font-family: Google Sans;
-      --df-messenger-chat-background: #f3f6fc;
-      --df-messenger-message-user-background: #d3e3fd;
-      --df-messenger-message-bot-background: #fff;
       bottom: 0;
       right: 0;
       top: 0;
       width: 350px;
+      --df-messenger-font-family: Google Sans;
+      --df-messenger-chat-background: #f3f6fc;
+      --df-messenger-message-bot-background: #fff;
     }
   </style>
 </head>
@@ -27,8 +25,7 @@
     location="us-east1"
     project-id="l2-np-dialogflow2-us-es1-desa"
     agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
-    language-code="es"
-    max-query-length="-1">
+    language-code="es">
   <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
 </df-messenger>
 
@@ -36,41 +33,43 @@
   const dfMessenger = document.querySelector('df-messenger');
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    // 1. Obtenemos los mensajes de la respuesta de CX
-    const messages = event.detail?.response?.queryResult?.responseMessages;
-    if (!messages) return;
+    try {
+      // Acceso ultra-seguro a los mensajes
+      const messages = event.detail?.response?.queryResult?.responseMessages || [];
+      
+      messages.forEach(msg => {
+        if (msg.payload && msg.payload.actions) {
+          const data = msg.payload;
+          const action = data.actions[0];
 
-    messages.forEach(msg => {
-      // 2. Si el mensaje trae tu estructura de 'actions'
-      if (msg.payload && msg.payload.actions) {
-        
-        console.log("Transformando payload para evitar error de parser...");
+          // 1. "Vaciamos" el mensaje original para que el widget no intente renderizarlo solo
+          // Esto es lo que evita el error de "undefined"
+          msg.payload = null; 
+          msg.text = null;
 
-        // 3. RE-ESTRUCTURACIÓN: Convertimos tu JSON a 'richContent' (lo que Google entiende)
-        // Esto evita que el parser interno tire "undefined"
-        const textToDisplay = msg.payload.text || "";
-        const action = msg.payload.actions[0];
+          // 2. Creamos la Card oficial (Formato v1)
+          const cardPayload = [
+            {
+              "type": "info",
+              "title": "La Segunda Seguros",
+              "subtitle": data.text || ""
+            },
+            {
+              "type": "button",
+              "icon": { "type": "link", "color": "#003366" },
+              "text": action.text || "Continuar",
+              "link": action.uri
+            }
+          ];
 
-        msg.payload.richContent = [[
-          {
-            "type": "info",
-            "title": "La Segunda Seguros 📲",
-            "subtitle": textToDisplay
-          },
-          {
-            "type": "button",
-            "icon": { "type": "link", "color": "#003366" },
-            "text": action.text || "Cotizar",
-            "link": action.uri
-          }
-        ]];
-
-        // 4. LIMPIEZA: Borramos las etiquetas que confunden al widget
-        delete msg.payload.actions;
-        delete msg.payload.text;
-        delete msg.payload.type;
-      }
-    });
+          // 3. Renderizado manual
+          console.log("Renderizando botón...");
+          dfMessenger.renderCustomCard(cardPayload);
+        }
+      });
+    } catch (e) {
+      console.error("Error en el interceptor:", e);
+    }
   });
 </script>
 
