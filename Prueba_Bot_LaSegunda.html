@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
 
     <style>
+        /* Diseño de la página de fondo */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
@@ -33,6 +34,7 @@
         p { line-height: 1.6; color: #666; }
         .logo-placeholder { font-weight: bold; color: #003366; font-size: 24px; margin-bottom: 20px; }
 
+        /* Configuración visual del Chat */
         df-messenger {
             z-index: 999;
             position: fixed;
@@ -49,10 +51,10 @@
 
     <div class="container">
         <div class="logo-placeholder">LA SEGUNDA SEGUROS</div>
-        <h1>Entorno de Pruebas</h1>
-        <p>Probando versión con <strong>Traductor Universal de Payloads</strong>.</p>
+        <h1>Entorno de Pruebas v4</h1>
+        <p>Probando flujos de <strong>Siniestros, Cotizaciones y Pólizas</strong>.</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <small style="color: #999;">Ambiente de Desarrollo (DESA)</small>
+        <small style="color: #999;">Traductor Universal de Componentes Activo</small>
     </div>
 
     <df-messenger
@@ -68,7 +70,10 @@
       const dfMessenger = document.querySelector('df-messenger');
 
       dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. Verificación ultra-segura
+        // Log para confirmar que el script cargó y está escuchando
+        console.log(">>> INTERCEPTOR RECIBIÓ DATOS <<<");
+
+        // 1. Verificación de seguridad para evitar errores de 'undefined'
         if (!event.detail || !event.detail.response) return;
 
         const queryResult = event.detail.response.queryResult;
@@ -77,12 +82,15 @@
         const messages = queryResult.responseMessages;
 
         messages.forEach((msg) => {
-          // 2. Si detectamos el payload con acciones (Siniestro, Cotización, Póliza, etc.)
+          // 2. Detectamos si el mensaje contiene el JSON con 'actions'
           if (msg && msg.payload && msg.payload.actions) {
             const data = msg.payload;
             const action = data.actions[0];
 
-            // 3. Transformamos a richContent SIN título para que sea universal
+            console.log(">>> TRANSFORMANDO COMPONENTE: " + (action.text || "Link"));
+
+            // 3. Reemplazamos el JSON por un componente visual 'richContent'
+            // Sin título fijo para que sirva para cualquier flujo
             msg.payload = {
               richContent: [[
                 {
@@ -99,9 +107,8 @@
               ]]
             };
 
-            // 4. Borramos el texto original para que no se vea el código JSON
+            // 4. Eliminamos el texto original para que no se vea el código crudo
             if (msg.text) delete msg.text;
-            console.log("DEBUG: Payload convertido correctamente.");
           }
         });
       });
