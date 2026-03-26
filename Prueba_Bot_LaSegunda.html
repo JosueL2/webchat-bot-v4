@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo La Segunda</title>
+    <title>Demo Chatbot - La Segunda</title>
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
     <style>
@@ -21,8 +21,8 @@
 <body>
 
     <div class="container">
-        <h1>La Segunda Seguros</h1>
-        <p>Entorno DESA - Fix Botones</p>
+        <h1>Entorno de Pruebas v4</h1>
+        <p>Estado: <strong>Botones con Título Activos</strong></p>
     </div>
 
     <df-messenger
@@ -30,47 +30,48 @@
         project-id="l2-np-dialogflow2-us-es1-desa"
         agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
         language-code="es">
-        <df-messenger-chat chat-title="Asistente Virtual"></df-messenger-chat>
+        <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
     </df-messenger>
 
     <script>
       const dfMessenger = document.querySelector('df-messenger');
 
       dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. Verificación de seguridad para evitar el error de 'undefined'
-        const queryResult = event.detail?.response?.queryResult || event.detail?.raw?.queryResult;
-        if (!queryResult || !queryResult.responseMessages) return;
+        // 1. Extraemos los mensajes del RAW (lo que vimos en tu log)
+        const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+        if (!rawMessages) return;
 
-        const messages = queryResult.responseMessages;
-
-        messages.forEach((msg) => {
-          // 2. Si el mensaje trae el payload de 'actions', lo "traducimos" al formato que Google ama
+        rawMessages.forEach(msg => {
+          // 2. Si detectamos el payload con acciones
           if (msg.payload && msg.payload.actions) {
+            
             const data = msg.payload;
-            const action = data.actions[0];
+            const buttonInfo = data.actions[0];
 
-            console.log(">>> Transformando payload para evitar error de parser...");
-
-            // 3. REESCRIBIMOS EL PAYLOAD: Convertimos a 'richContent' in-place
-            // Esto hace que el widget lo renderice solo y en orden, sin usar renderCustomCard
-            msg.payload = {
-              richContent: [[
+            // 3. Creamos la Card con la estructura exacta que pide el parser v1
+            // Ponemos el título de vuelta como pediste
+            const customCard = [
+              [
                 {
                   "type": "info",
-                  "title": "Gestión Disponible 📲", // Ponemos el título para que el parser no explote
+                  "title": "Gestión Online 📲", 
                   "subtitle": data.text || ""
                 },
                 {
                   "type": "button",
                   "icon": { "type": "link", "color": "#003366" },
-                  "text": action.text || "Continuar",
-                  "link": action.uri
+                  "text": buttonInfo.text || "Continuar",
+                  "link": buttonInfo.uri
                 }
-              ]]
-            };
+              ]
+            ];
 
-            // 4. Matamos el texto original para que no se duplique
-            msg.text = undefined;
+            console.log(">>> RENDERIZANDO BOTÓN:", buttonInfo.text);
+
+            // 4. Inyectamos la tarjeta
+            setTimeout(() => {
+              dfMessenger.renderCustomCard(customCard);
+            }, 200);
           }
         });
       });
