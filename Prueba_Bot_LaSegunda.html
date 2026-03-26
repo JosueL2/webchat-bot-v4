@@ -37,47 +37,47 @@
     </df-messenger>
 
     <script>
-        const dfMessenger = document.querySelector('df-messenger');
+  const dfMessenger = document.querySelector('df-messenger');
 
-        dfMessenger.addEventListener('df-response-received', function (event) {
-            console.log("MENSAJE RECIBIDO:", event.detail);
+  dfMessenger.addEventListener('df-response-received', function (event) {
+    console.log("--- NUEVA RESPUESTA DETECTADA ---");
+    
+    // 1. Ver todo el objeto detallado para inspeccionar manualmente
+    console.log("Respuesta Completa:", event.detail);
 
-            const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
-            if (!rawMessages) return;
+    // 2. Buscar en Webhook Payloads (donde Google suele esconder los links de CX)
+    const webhookPayloads = event.detail?.response?.queryResult?.webhookPayloads;
+    if (webhookPayloads) {
+        console.log("¡PAYLOAD DE WEBHOOK ENCONTRADO!", webhookPayloads);
+    }
 
-            rawMessages.forEach(msg => {
-                if (msg.payload && msg.payload.actions) {
-                    const data = msg.payload;
-                    const buttonInfo = data.actions[0];
-
-                    // Usamos la estructura de doble corchete [[...]] que es la que te funcionaba
-                    // Y reponemos el TITLE para que el parser de Google no explote
-                    const customCard = [
-                        [
-                            {
-                                "type": "info",
-                                "title": "Gestión Online 📲", 
-                                "subtitle": data.text || ""
-                            },
-                            {
-                                "type": "button",
-                                "icon": {
-                                    "type": "link",
-                                    "color": "#003366"
-                                },
-                                "text": buttonInfo.text || "Ver más",
-                                "link": buttonInfo.uri
-                            }
-                        ]
-                    ];
-
-                    // Inyectamos la tarjeta con un pequeño delay
-                    setTimeout(() => {
-                        dfMessenger.renderCustomCard(customCard);
-                    }, 200);
-                }
-            });
+    // 3. Buscar en la respuesta cruda (RAW)
+    const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+    if (rawMessages) {
+        rawMessages.forEach((m, i) => {
+            if (m.payload) {
+                console.log(`¡PAYLOAD DETECTADO EN RAW (Mensaje ${i})!`, m.payload);
+            }
         });
-    </script>
+    }
+
+    // 4. Si encontramos algo con 'actions', lo forzamos
+    const allMsgs = rawMessages || event.detail?.response?.queryResult?.responseMessages || [];
+    allMsgs.forEach(msg => {
+        if (msg.payload && msg.payload.actions) {
+            console.log(">>> TRANSFORMANDO BOTÓN...");
+            const data = msg.payload;
+            const action = data.actions[0];
+            const card = [{
+                "richContent": [[
+                    { "type": "info", "title": "Gestión", "subtitle": data.text || "" },
+                    { "type": "button", "icon": {"type": "link", "color": "#003366"}, "text": action.text, "link": action.uri }
+                ]]
+            }];
+            dfMessenger.renderCustomCard(card);
+        }
+    });
+  });
+</script>
 </body>
 </html>
