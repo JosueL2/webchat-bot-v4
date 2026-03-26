@@ -22,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Fix de Error de 'queryResult'</p>
+        <p>Versión corregida (Sin Títulos)</p>
     </div>
 
     <df-messenger
@@ -34,50 +34,46 @@
     </df-messenger>
 
     <script>
-  const dfMessenger = document.querySelector('df-messenger');
+        const dfMessenger = document.querySelector('df-messenger');
 
-  dfMessenger.addEventListener('df-response-received', function (event) {
-    // 1. Buscamos en la respuesta 'raw' (la que viene de Google sin filtros)
-    const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+        dfMessenger.addEventListener('df-response-received', function (event) {
+            // Buscamos el payload de forma segura
+            const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+            if (!rawMessages) return;
 
-    if (!rawMessages) return;
+            rawMessages.forEach(msg => {
+                if (msg.payload && msg.payload.actions) {
+                    console.log("DEBUG: Generando card sin título...");
 
-    rawMessages.forEach(msg => {
-      // 2. Verificamos si el mensaje tiene tu estructura específica de 'actions'
-      if (msg.payload && msg.payload.actions) {
-        console.log("DEBUG: Payload de cotización detectado, forzando renderizado...");
+                    const data = msg.payload;
+                    const buttonInfo = data.actions[0];
 
-        const data = msg.payload;
-        const buttonInfo = data.actions[0];
+                    // LA SOLUCIÓN: Quitamos el título y usamos un array simple de objetos
+                    // Google espera [ {obj1}, {obj2} ] no [ [ {obj1}, {obj2} ] ]
+                    const customCard = [
+                        {
+                            "type": "info",
+                            "title": "", // Título vacío para eliminar el encabezado negrita
+                            "subtitle": data.text || ""
+                        },
+                        {
+                            "type": "button",
+                            "icon": {
+                                "type": "link",
+                                "color": "#003366"
+                            },
+                            "text": buttonInfo.text || "Cotizar",
+                            "link": buttonInfo.uri
+                        }
+                    ];
 
-        // 3. Creamos la estructura que el chat SÍ entiende
-        const customCard = [
-          [
-            {
-              "type": "info",
-              "title": "Cotización Online 📲",
-              "subtitle": data.text // Aquí ponemos el texto largo de los seguros
-            },
-            {
-              "type": "button",
-              "icon": {
-                "type": "link",
-                "color": "#003366"
-              },
-              "text": buttonInfo.text || "Cotizar",
-              "link": buttonInfo.uri
-            }
-          ]
-        ];
-
-        // 4. Inyectamos la tarjeta en el chat
-        // Usamos un pequeño delay para que aparezca después del texto principal
-        setTimeout(() => {
-          dfMessenger.renderCustomCard(customCard);
-        }, 200);
-      }
-    });
-  });
-</script>
+                    setTimeout(() => {
+                        // Inyectamos la lista de componentes directamente
+                        dfMessenger.renderCustomCard(customCard);
+                    }, 200);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
