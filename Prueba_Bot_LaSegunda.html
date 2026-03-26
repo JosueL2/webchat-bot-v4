@@ -67,51 +67,36 @@
     </df-messenger>
 
     <script>
-      const dfMessenger = document.querySelector('df-messenger');
+  const dfMessenger = document.querySelector('df-messenger');
 
-      dfMessenger.addEventListener('df-response-received', function (event) {
-        // Log para confirmar que el script cargó y está escuchando
-        console.log(">>> INTERCEPTOR RECIBIÓ DATOS <<<");
+  dfMessenger.addEventListener('df-response-received', function (event) {
+    // ESTA LÍNEA ES LA MÁS IMPORTANTE:
+    // Te va a mostrar en la consola TODO lo que llega.
+    console.log(">>> DATOS CRUDOS RECIBIDOS:", event.detail);
 
-        // 1. Verificación de seguridad para evitar errores de 'undefined'
-        if (!event.detail || !event.detail.response) return;
+    const messages = event.detail?.response?.queryResult?.responseMessages || event.detail?.raw?.queryResult?.responseMessages;
+    
+    if (!messages) {
+        console.log(">>> No se encontraron mensajes en la ruta estándar.");
+        return;
+    }
 
-        const queryResult = event.detail.response.queryResult;
-        if (!queryResult || !queryResult.responseMessages) return;
+    messages.forEach((msg, i) => {
+      // Intentamos detectar el payload para transformarlo
+      if (msg.payload && msg.payload.actions) {
+        const data = msg.payload;
+        const action = data.actions[0];
 
-        const messages = queryResult.responseMessages;
+        const richContent = [[
+          { "type": "info", "title": "", "subtitle": data.text || "" },
+          { "type": "button", "icon": { "type": "link", "color": "#003366" }, "text": action.text, "link": action.uri }
+        ]];
 
-        messages.forEach((msg) => {
-          // 2. Detectamos si el mensaje contiene el JSON con 'actions'
-          if (msg && msg.payload && msg.payload.actions) {
-            const data = msg.payload;
-            const action = data.actions[0];
-
-            console.log(">>> TRANSFORMANDO COMPONENTE: " + (action.text || "Link"));
-
-            // 3. Reemplazamos el JSON por un componente visual 'richContent'
-            // Sin título fijo para que sirva para cualquier flujo
-            msg.payload = {
-              richContent: [[
-                {
-                  "type": "info",
-                  "title": "", 
-                  "subtitle": data.text || "" 
-                },
-                {
-                  "type": "button",
-                  "icon": { "type": "link", "color": "#003366" },
-                  "text": action.text || "Ver más",
-                  "link": action.uri
-                }
-              ]]
-            };
-
-            // 4. Eliminamos el texto original para que no se vea el código crudo
-            if (msg.text) delete msg.text;
-          }
-        });
-      });
-    </script>
+        dfMessenger.renderCustomCard(richContent);
+        if (msg.text) delete msg.text;
+      }
+    });
+  });
+</script>
 </body>
 </html>
