@@ -28,26 +28,17 @@
   const dfMessenger = document.querySelector('df-messenger');
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    console.log('[DF] evento recibido:', event.detail);
+    // El payload crudo está en event.detail.raw (antes de ser procesado por DF Messenger)
+    const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
+    if (!rawMessages) return;
 
-    const messages = event.detail?.response?.queryResult?.responseMessages;
-    console.log('[DF] responseMessages:', JSON.stringify(messages, null, 2));
-
-    if (!messages) {
-      console.warn('[DF] No se encontraron responseMessages');
-      return;
-    }
-
-    messages.forEach((msg, i) => {
-      console.log(`[DF] msg[${i}]:`, JSON.stringify(msg, null, 2));
-
+    rawMessages.forEach(msg => {
       if (msg.payload && msg.payload.actions) {
-        console.log('[DF] payload con actions encontrado, transformando...');
         const data = msg.payload;
         const action = data.actions[0];
 
-        msg.payload = {
-          richContent: [[
+        setTimeout(() => {
+          dfMessenger.renderCustomCard([
             {
               "type": "info",
               "title": "La Segunda Seguros",
@@ -59,11 +50,8 @@
               "text": action.text || "Ver más",
               "link": action.uri
             }
-          ]]
-        };
-        console.log('[DF] msg.payload transformado:', JSON.stringify(msg.payload, null, 2));
-      } else {
-        console.log(`[DF] msg[${i}] no tiene payload.actions, tipo:`, msg.payload ? 'payload sin actions' : (msg.text ? 'text' : 'otro'));
+          ]);
+        }, 100);
       }
     });
   });
