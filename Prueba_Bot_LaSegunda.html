@@ -3,19 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot La Segunda</title>
+    <title>Demo La Segunda - Fix Final</title>
+    
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        df-messenger { z-index: 999; position: fixed; bottom: 20px; right: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; }
+        h1 { color: #003366; }
+        
+        df-messenger {
+            z-index: 999;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            --df-messenger-font-family: 'Google Sans', sans-serif;
+            --df-messenger-chat-background: #f3f6fc;
+            --df-messenger-message-user-background: #d3e3fd;
+            --df-messenger-message-bot-background: #fff;
+        }
     </style>
 </head>
 <body>
 
-    <div style="text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-        <h1>La Segunda - Test Final</h1>
-        <p>Solución: Sin títulos y en orden correcto.</p>
+    <div class="container">
+        <h1>Entorno de Pruebas</h1>
+        <p>Solución: <strong>Modificación de Mensaje en Tiempo Real</strong></p>
     </div>
 
     <df-messenger
@@ -23,48 +37,49 @@
         project-id="l2-np-dialogflow2-us-es1-desa"
         agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
         language-code="es">
-        <df-messenger-chat chat-title="Asistente Virtual"></df-messenger-chat>
+        <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
     </df-messenger>
 
     <script>
-      const dfMessenger = document.querySelector('df-messenger');
+        const dfMessenger = document.querySelector('df-messenger');
 
-      dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. Accedemos a los mensajes ANTES de que se rendericen
-        const messages = event.detail?.response?.queryResult?.responseMessages;
-        if (!messages) return;
-
-        messages.forEach((msg) => {
-          // 2. ¿Es el mensaje que trae el payload de 'actions'?
-          if (msg.payload && msg.payload.actions) {
-            const data = msg.payload;
-            const action = data.actions[0];
-
-            // 3. TRANSFORMACIÓN: Convertimos el payload a richContent (formato que el widget entiende)
-            // Ponemos title como un espacio " " para que sea invisible pero no de error
-            msg.payload = {
-              richContent: [[
-                {
-                  "type": "info",
-                  "title": " ", 
-                  "subtitle": data.text || ""
-                },
-                {
-                  "type": "button",
-                  "icon": { "type": "link", "color": "#003366" },
-                  "text": action.text || "Continuar",
-                  "link": action.uri
-                }
-              ]]
-            };
-
-            // 4. Limpiamos el texto para que no se vea duplicado
-            if (msg.text) delete msg.text;
+        dfMessenger.addEventListener('df-response-received', function (event) {
+            // 1. Extraemos los mensajes que llegaron del bot
+            const responseMessages = event.detail.response.queryResult.responseMessages;
             
-            console.log(">>> Mensaje transformado con éxito");
-          }
+            responseMessages.forEach((msg) => {
+                // 2. Buscamos si el mensaje tiene nuestro payload con 'actions'
+                if (msg.payload && msg.payload.actions) {
+                    const originalText = msg.payload.text;
+                    const action = msg.payload.actions[0];
+
+                    // 3. TRANSFORMACIÓN CRUCIAL:
+                    // Convertimos el mensaje en un "richContent" que el widget entienda nativamente.
+                    // Ponemos un espacio en 'title' para que el parser no tire "undefined".
+                    msg.payload = {
+                        richContent: [[
+                            {
+                                "type": "info",
+                                "title": " ", 
+                                "subtitle": originalText || ""
+                            },
+                            {
+                                "type": "button",
+                                "icon": { "type": "link", "color": "#003366" },
+                                "text": action.text || "Ver link",
+                                "link": action.uri
+                            }
+                        ]]
+                    };
+
+                    // 4. IMPORTANTE: Borramos el campo text del objeto original 
+                    // para que el chat no intente dibujar el JSON crudo.
+                    msg.text = undefined;
+                    
+                    console.log(">>> Payload transformado sin títulos.");
+                }
+            });
         });
-      });
     </script>
 </body>
 </html>
