@@ -2,20 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>La Segunda - Integración</title>
+  <title>La Segunda - Fix Final</title>
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
   <style>
     df-messenger {
       z-index: 999;
       position: fixed;
-      bottom: 0;
-      right: 0;
-      top: 0;
+      bottom: 0; right: 0; top: 0;
       width: 350px;
-      --df-messenger-font-family: Google Sans;
-      --df-messenger-chat-background: #f3f6fc;
-      --df-messenger-message-bot-background: #fff;
     }
   </style>
 </head>
@@ -33,45 +28,45 @@
   const dfMessenger = document.querySelector('df-messenger');
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    try {
-      // Acceso ultra-seguro a los mensajes
-      const messages = event.detail?.response?.queryResult?.responseMessages || [];
-      
-      messages.forEach(msg => {
-        if (msg.payload && msg.payload.actions) {
-          const data = msg.payload;
-          const action = data.actions[0];
+    // 1. Obtenemos la referencia real a los mensajes
+    const messages = event.detail?.response?.queryResult?.responseMessages;
+    if (!messages) return;
 
-          // 1. "Vaciamos" el mensaje original para que el widget no intente renderizarlo solo
-          // Esto es lo que evita el error de "undefined"
-          msg.payload = null; 
-          msg.text = null;
+    messages.forEach(msg => {
+      // 2. Si el bot manda el JSON con 'actions'...
+      if (msg.payload && msg.payload.actions) {
+        
+        const data = msg.payload;
+        const action = data.actions[0];
 
-          // 2. Creamos la Card oficial (Formato v1)
-          const cardPayload = [
-            {
-              "type": "info",
-              "title": "La Segunda Seguros",
-              "subtitle": data.text || ""
-            },
-            {
-              "type": "button",
-              "icon": { "type": "link", "color": "#003366" },
-              "text": action.text || "Continuar",
-              "link": action.uri
-            }
-          ];
+        // --- AQUÍ ESTÁ EL ORIGEN DEL ERROR ---
+        // Transformamos el mensaje en un mensaje de "texto" vacío.
+        // Esto hace que el Parser de Google diga "ah, es un texto, lo sé renderizar" y no tire error.
+        msg.text = { text: [""] }; 
+        delete msg.payload; 
 
-          // 3. Renderizado manual
-          console.log("Renderizando botón...");
+        // 3. Ahora que el parser está calmado, mandamos nuestra Card
+        const cardPayload = [
+          {
+            "type": "info",
+            "title": "La Segunda Seguros 📲",
+            "subtitle": data.text || ""
+          },
+          {
+            "type": "button",
+            "icon": { "type": "link", "color": "#003366" },
+            "text": action.text || "Ver más",
+            "link": action.uri
+          }
+        ];
+
+        // 4. Renderizado manual
+        setTimeout(() => {
           dfMessenger.renderCustomCard(cardPayload);
-        }
-      });
-    } catch (e) {
-      console.error("Error en el interceptor:", e);
-    }
+        }, 50);
+      }
+    });
   });
 </script>
-
 </body>
 </html>
