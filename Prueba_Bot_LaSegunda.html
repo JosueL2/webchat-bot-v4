@@ -22,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Versión Final: <strong>Sin Títulos en Cards</strong></p>
+        <p>Solución Final: <strong>Sin Títulos y Universal</strong></p>
     </div>
 
     <df-messenger
@@ -37,42 +37,40 @@
   const dfMessenger = document.querySelector('df-messenger');
 
   dfMessenger.addEventListener('df-response-received', function (event) {
-    // ESTA LINEA te muestra el mensaje real en la consola
+    // 1. Vemos TODO lo que llega para no andar a ciegas
     console.log("MENSAJE RECIBIDO:", event.detail);
 
     const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
-
     if (!rawMessages) return;
 
     rawMessages.forEach(msg => {
-      if (msg.payload && msg.payload.actions) {
-        console.log("DEBUG: Payload detectado, generando botón...");
-
+      // 2. Solo actuamos si el mensaje tiene el payload de 'actions'
+      if (msg && msg.payload && msg.payload.actions && msg.payload.actions.length > 0) {
+        
         const data = msg.payload;
         const buttonInfo = data.actions[0];
 
-        // TARJETA SIN TITULO
+        console.log(">>> PAYLOAD ENCONTRADO:", data);
+
+        // 3. Creamos la Card: TITULO VACIO para que no salga nada en negrita
         const customCard = [
-          [
-            {
-              "type": "info",
-              "subtitle": data.text // Aquí va el texto del bot (Siniestro, Cotización, etc.)
-            },
-            {
-              "type": "button",
-              "icon": {
-                "type": "link",
-                "color": "#003366"
-              },
-              "text": buttonInfo.text || "Continuar",
-              "link": buttonInfo.uri
-            }
-          ]
+          {
+            "type": "info",
+            "title": "", 
+            "subtitle": data.text || "" 
+          },
+          {
+            "type": "button",
+            "icon": { "type": "link", "color": "#003366" },
+            "text": buttonInfo.text || "Ver link",
+            "link": buttonInfo.uri
+          }
         ];
 
-        setTimeout(() => {
-          dfMessenger.renderCustomCard(customCard);
-        }, 200);
+        // 4. Renderizamos SOLO si la card está bien armada
+        if (customCard[0].subtitle || customCard[1].link) {
+            dfMessenger.renderCustomCard([customCard]);
+        }
       }
     });
   });
