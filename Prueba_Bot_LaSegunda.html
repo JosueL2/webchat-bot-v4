@@ -34,47 +34,48 @@
     </df-messenger>
 
     <script>
-      const dfMessenger = document.querySelector('df-messenger');
+  const dfMessenger = document.querySelector('df-messenger');
 
-      dfMessenger.addEventListener('df-response-received', function (event) {
-        // 1. Extraemos los mensajes del RAW (lo que vimos en tu log)
-        const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
-        if (!rawMessages) return;
+  dfMessenger.addEventListener('df-response-received', function (event) {
+    // 1. Extraemos los mensajes de la respuesta
+    const messages = event.detail.response.queryResult.responseMessages;
 
-        rawMessages.forEach(msg => {
-          // 2. Si detectamos el payload con acciones
-          if (msg.payload && msg.payload.actions) {
-            
-            const data = msg.payload;
-            const buttonInfo = data.actions[0];
+    messages.forEach((msg) => {
+      // 2. ¿Es el payload con acciones que me pasaste?
+      if (msg.payload && msg.payload.actions) {
+        const data = msg.payload;
+        const action = data.actions[0];
 
-            // 3. Creamos la Card con la estructura exacta que pide el parser v1
-            // Ponemos el título de vuelta como pediste
-            const customCard = [
-              [
-                {
-                  "type": "info",
-                  "title": "Gestión Online 📲", 
-                  "subtitle": data.text || ""
-                },
-                {
-                  "type": "button",
-                  "icon": { "type": "link", "color": "#003366" },
-                  "text": buttonInfo.text || "Continuar",
-                  "link": buttonInfo.uri
-                }
-              ]
-            ];
+        // 3. RECONSTRUCCIÓN: Creamos la estructura que el widget SÍ entiende (Rich Content)
+        // Usamos un array de arrays [[ ]] porque así lo pide la documentación para renderizar
+        const richPayload = [
+          [
+            {
+              "type": "info",
+              "title": "Gestión Online 📲", // Título genérico para que no falle el parser
+              "subtitle": data.text || ""   // Tu texto: "Cotizá tu seguro..."
+            },
+            {
+              "type": "button",
+              "icon": {
+                "type": "link",
+                "color": "#003366"
+              },
+              "text": action.text || "Ver más", // Ejemplo: "Cotizar"
+              "link": action.uri
+            }
+          ]
+        ];
 
-            console.log(">>> RENDERIZANDO BOTÓN:", buttonInfo.text);
-
-            // 4. Inyectamos la tarjeta
-            setTimeout(() => {
-              dfMessenger.renderCustomCard(customCard);
-            }, 200);
-          }
-        });
-      });
-    </script>
+        // 4. EL TRUCO: Usamos la función nativa para renderizar la tarjeta
+        // Esto evita el error de "undefined" porque le pasamos el formato exacto
+        dfMessenger.renderCustomCard(richPayload);
+        
+        // 5. Opcional: Borramos el payload crudo para que no intente mostrar el JSON en el chat
+        delete msg.payload;
+      }
+    });
+  });
+</script>
 </body>
 </html>
