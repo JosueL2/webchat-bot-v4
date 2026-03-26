@@ -34,62 +34,58 @@
     </df-messenger>
 
     <script>
-        const dfMessenger = document.querySelector('df-messenger');
+    const dfMessenger = document.querySelector('df-messenger');
+    
+    dfMessenger.addEventListener('df-response-received', function (event) {
+        console.log("DEBUG: Datos recibidos ->", event.detail);
         
-        dfMessenger.addEventListener('df-response-received', function (event) {
-            console.log("DEBUG: Estructura completa recibida:", event.detail);
+        // Usamos ?. para que si algo no existe, simplemente devuelva 'undefined' y no tire error
+        let messages = event.detail?.response?.queryResult?.responseMessages 
+                       || event.detail?.messages 
+                       || [];
+
+        if (messages.length === 0) {
+            console.log("DEBUG: No se encontraron mensajes procesables.");
+            return;
+        }
+
+        for (let i = 0; i < messages.length; i++) {
+            let msg = messages[i];
             
-            // Intentamos obtener los mensajes de forma segura (para CX o ES)
-            let messages = [];
-            if (event.detail && event.detail.response && event.detail.response.queryResult) {
-                messages = event.detail.response.queryResult.responseMessages;
-            } else if (event.detail && event.detail.messages) {
-                messages = event.detail.messages;
+            // Buscamos tu payload de acciones (la estructura de tu diagnóstico)
+            // Revisamos si es un objeto payload O si es texto que contiene el JSON
+            let rawData = null;
+            if (msg.payload && msg.payload.actions) {
+                rawData = msg.payload;
+            } else if (msg.text && msg.text.text && typeof msg.text.text[0] === 'string' && msg.text.text[0].includes('"actions"')) {
+                try {
+                    rawData = JSON.parse(msg.text.text[0]);
+                } catch (e) { console.error("Error parseando JSON:", e); }
             }
 
-            if (!messages || messages.length === 0) {
-                console.log("DEBUG: No se encontraron mensajes en la respuesta.");
-                return;
-            }
+            if (rawData && rawData.actions) {
+                console.log("DEBUG: ¡Transformando payload de cotización!");
+                const linkAction = rawData.actions[0];
 
-            for (let i = 0; i < messages.length; i++) {
-                let msg = messages[i];
-                let rawData = null;
-
-                // Caso 1: El JSON está en payload.actions
-                if (msg.payload && msg.payload.actions) {
-                    rawData = msg.payload;
-                } 
-                // Caso 2: El JSON está como texto (lo que pasaba antes)
-                else if (msg.text && msg.text.text && msg.text.text[0].includes('"actions"')) {
-                    try {
-                        rawData = JSON.parse(msg.text.text[0]);
-                    } catch (e) { console.error("Error parseando texto como JSON", e); }
-                }
-
-                if (rawData && rawData.actions) {
-                    console.log("DEBUG: Transformando Payload...");
-                    const action = rawData.actions[0];
-                    
-                    // Inyectamos el formato que entiende el widget
-                    messages[i] = {
-                        payload: {
-                            richContent: [[
-                                {
-                                    "type": "info",
-                                    "title": "Cotización Online 💻",
-                                    "subtitle": rawData.text || "Hacé clic abajo para cotizar."
-                                },
-                                {
-                                    "type": "button",
-                                    "icon": { "type": "link", "color": "#003366" },
-                                    "text": action.text || "Cotizar",
-                                    "link": action.uri
-                                }
-                            ]]
-                        }
-                    };
-                }
+                // Convertimos al formato oficial 'richContent'
+                messages[i] = {
+                    payload: {
+                        richContent: [[
+                            {
+                                "type": "info",
+                                "title": "Cotización Online 💻",
+                                "subtitle": rawData.text || "Hacé clic abajo para cotizar tu seguro."
+                            },
+                            {
+                                "type": "button",
+                                "icon": { "type": "link", "color": "#003366" },
+                                "text": linkAction.text || "Cotizar",
+                                "link": linkAction.uri
+                            }
+                        ]]
+                    }
+                };
+             }
             }
         });
     </script>
