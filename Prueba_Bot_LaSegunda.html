@@ -22,7 +22,7 @@
 
     <div class="container">
         <h1>Entorno de Pruebas v4</h1>
-        <p>Link de Cotización Interceptado</p>
+        <p>Versión con Interceptor de Payloads v2</p>
     </div>
 
     <df-messenger
@@ -37,36 +37,42 @@
         const dfMessenger = document.querySelector('df-messenger');
         
         dfMessenger.addEventListener('df-response-received', function (event) {
-            // Accedemos a los mensajes que vienen en el JSON que me pasaste
+            console.log("DEBUG: Respuesta recibida de Dialogflow");
+            
+            // Accedemos a los mensajes directamente en el evento
             const messages = event.detail.response.queryResult.responseMessages;
             
-            messages.forEach(msg => {
-                // Buscamos EXACTAMENTE la estructura de tu log: msg.payload.actions
-                if (msg.payload && msg.payload.actions && msg.payload.actions.length > 0) {
-                    const data = msg.payload;
-                    const action = data.actions[0];
+            for (let i = 0; i < messages.length; i++) {
+                let msg = messages[i];
+                
+                // Verificamos si este mensaje tiene el formato de tu payload custom
+                if (msg.payload && msg.payload.actions) {
+                    console.log("DEBUG: ¡Payload de Cotización detectado!", msg.payload);
                     
-                    // Transformamos ese objeto en algo que el widget SÍ entienda (richContent)
-                    msg.payload.richContent = [[
-                        {
-                            "type": "info",
-                            "title": "Cotización Online 💻",
-                            "subtitle": data.text || "Hacé clic en el botón de abajo para cotizar tu seguro."
-                        },
-                        {
-                            "type": "button",
-                            "icon": { "type": "link", "color": "#003366" },
-                            "text": action.text || "Cotizar",
-                            "link": action.uri
+                    const rawData = msg.payload;
+                    const action = rawData.actions[0];
+
+                    // REEMPLAZAMOS el mensaje por uno que el widget sí entienda (richContent)
+                    messages[i] = {
+                        payload: {
+                            richContent: [[
+                                {
+                                    "type": "info",
+                                    "title": "Cotización Online 💻",
+                                    "subtitle": rawData.text || "Hacé clic abajo para cotizar."
+                                },
+                                {
+                                    "type": "button",
+                                    "icon": { "type": "link", "color": "#003366" },
+                                    "text": action.text || "Cotizar",
+                                    "link": action.uri
+                                }
+                            ]]
                         }
-                    ]];
-                    
-                    // Limpiamos los campos viejos para evitar conflictos
-                    delete msg.payload.actions;
-                    delete msg.payload.text;
-                    delete msg.payload.type;
+                    };
+                    console.log("DEBUG: Mensaje transformado con éxito.");
                 }
-            });
+            }
         });
     </script>
 </body>
