@@ -3,79 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Chatbot - La Segunda</title>
+    <title>La Segunda - Integración Oficial</title>
     <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
     <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; }
+        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; }
+        
         df-messenger {
             z-index: 999;
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            --df-messenger-font-family: 'Google Sans', sans-serif;
+            --df-messenger-font-color: #000;
+            --df-messenger-font-family: Google Sans;
+            --df-messenger-chat-background: #f3f6fc;
+            --df-messenger-message-user-background: #d3e3fd;
+            --df-messenger-message-bot-background: #fff;
+            bottom: 0;
+            right: 0;
+            top: 0;
+            width: 350px; /* Según tu documentación */
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Entorno de Pruebas v4</h1>
-        <p>Estado: <strong>Botones con Título Activos</strong></p>
-    </div>
-
     <df-messenger
         location="us-east1"
         project-id="l2-np-dialogflow2-us-es1-desa"
         agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
-        language-code="es">
+        language-code="es"
+        max-query-length="-1">
         <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
     </df-messenger>
 
     <script>
-  const dfMessenger = document.querySelector('df-messenger');
+        const dfMessenger = document.querySelector('df-messenger');
 
-  dfMessenger.addEventListener('df-response-received', function (event) {
-    // 1. Buscamos los mensajes en el objeto de respuesta
-    const messages = event.detail?.response?.queryResult?.responseMessages;
-    if (!messages) return;
+        dfMessenger.addEventListener('df-response-received', function (event) {
+            // 1. Extraemos los mensajes de forma segura (según docs de CX)
+            const messages = event.detail?.response?.queryResult?.responseMessages;
+            if (!messages) return;
 
-    messages.forEach((msg) => {
-      // 2. ¿Trae el payload con acciones?
-      if (msg.payload && msg.payload.actions) {
-        const data = msg.payload;
-        const action = data.actions[0];
+            messages.forEach(msg => {
+                // 2. Buscamos tu JSON específico con 'actions'
+                if (msg.payload && msg.payload.actions) {
+                    
+                    // --- AQUÍ ESTÁ EL TRUCO PARA ELIMINAR EL ERROR ---
+                    // Le decimos al widget que este mensaje ya no tiene payload para que deje de tirar "undefined"
+                    const originalData = { ...msg.payload };
+                    delete msg.payload; 
 
-        // --- EL FIX CRÍTICO ---
-        // Borramos el payload del mensaje original. 
-        // Si no lo borramos, el widget intenta parsearlo solo, falla y tira el "undefined".
-        delete msg.payload; 
+                    const action = originalData.actions[0];
 
-        // 3. Estructura EXACTA según la documentación de Google Messenger v1
-        const cardPayload = [
-          {
-            "type": "info",
-            "title": "La Segunda Seguros", // El título que pediste
-            "subtitle": data.text || "Gestión disponible"
-          },
-          {
-            "type": "button",
-            "icon": {
-              "type": "link",
-              "color": "#003366"
-            },
-            "text": action.text || "Ver más",
-            "link": action.uri
-          }
-        ];
+                    // 3. Formato oficial de Rich Content para renderCustomCard
+                    const cardPayload = [
+                        {
+                            "type": "info",
+                            "title": "La Segunda Seguros 📲", // El título que querías
+                            "subtitle": originalData.text || ""
+                        },
+                        {
+                            "type": "button",
+                            "icon": {
+                                "type": "link",
+                                "color": "#003366"
+                            },
+                            "text": action.text || "Ver más",
+                            "link": action.uri
+                        }
+                    ];
 
-        // 4. Renderizamos la tarjeta usando la función nativa
-        console.log(">>> Renderizando card oficial para:", action.text);
-        dfMessenger.renderCustomCard(cardPayload);
-      }
-    });
-  });
-</script>
+                    // 4. Renderizado manual (JavaScript puro)
+                    console.log("Intentando renderizar card oficial...");
+                    dfMessenger.renderCustomCard(cardPayload);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
