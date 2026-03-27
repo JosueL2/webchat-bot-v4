@@ -28,56 +28,5 @@
   <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
 </df-messenger>
 
-<script>
-  const dfMessenger = document.querySelector('df-messenger');
-  const seenResponses = new Set();
-
-  dfMessenger.addEventListener('df-response-received', function (event) {
-    const responseId = event.detail?.raw?.responseId;
-    if (!responseId || seenResponses.has(responseId)) return;
-    seenResponses.add(responseId);
-
-    const rawMessages = event.detail?.raw?.queryResult?.responseMessages;
-    if (!rawMessages) return;
-
-    rawMessages.forEach(msg => {
-      if (msg.payload && msg.payload.actions) {
-        const data = msg.payload;
-        const action = data.actions[0];
-
-        setTimeout(() => {
-          injectLinkBubble(
-            `Cotizá tu seguro <a href="${action.uri}" target="_blank" rel="noopener noreferrer" style="color:#003366;font-weight:bold;">acá</a>: Auto, Hogar, Accidentes Personales, Vida, Retiro, Comercio, Bici y Monopatín.😉`
-          );
-        }, 150);
-      }
-    });
-  });
-
-  function injectLinkBubble(html) {
-    try {
-      const chatEl = dfMessenger.querySelector('df-messenger-chat');
-      if (!chatEl?.shadowRoot) return;
-      const chatRoot = chatEl.shadowRoot;
-
-      const allEls = Array.from(chatRoot.querySelectorAll('*'));
-      const container = allEls.reduce((best, el) => {
-        return (el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT' && el.children.length > (best?.children.length || 0)) ? el : best;
-      }, null);
-      if (!container) return;
-
-      const bubble = document.createElement('div');
-      bubble.style.cssText = 'display:flex;padding:4px 16px 4px 8px;justify-content:flex-start;';
-      const inner = document.createElement('div');
-      inner.style.cssText = 'background:#e8f4fd;border-radius:18px 18px 18px 4px;padding:10px 16px;max-width:80%;font-size:14px;color:#333;line-height:1.5;font-family:sans-serif;word-break:break-word;';
-      inner.innerHTML = html;
-      bubble.appendChild(inner);
-      container.appendChild(bubble);
-      container.scrollTop = container.scrollHeight;
-    } catch (e) {
-      console.error('[injectLinkBubble]', e);
-    }
-  }
-</script>
 </body>
 </html>
