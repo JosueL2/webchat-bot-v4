@@ -5,165 +5,110 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Segunda - Webchat</title>
 
-  <!-- Librería y estilos oficiales de Dialogflow CX (v1) -->
+  <!-- Librería y estilos oficiales de Dialogflow CX -->
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 
   <style>
     body { 
       margin: 0; 
-      font-family: Arial, sans-serif;
+      font-family: Arial, sans-serif; 
     }
 
     df-messenger {
       z-index: 999;
       position: fixed;
-      top: 0; 
-      bottom: 0;
+      top: 0; bottom: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
     }
-
-    /* Estilos dinámicos para Renderizar los Custom Payloads (Botones/Links) */
-    .custom-card-container {
-      background: #ffffff;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin: 8px 16px;
-      font-family: Arial, sans-serif;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-      max-width: 85%;
-    }
-
-    .custom-card-text {
-      font-size: 14px;
-      color: #333333;
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-
-    .custom-card-btn {
-      display: inline-block;
-      background-color: #B93221; /* Rojo corporativo La Segunda */
-      color: #ffffff !important;
-      text-decoration: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: bold;
-      transition: background-color 0.2s;
-      text-align: center;
-    }
-
-    .custom-card-btn:hover {
-      background-color: #922518;
-    }
   </style>
 </head>
 <body>
 
-  <!-- Componente Dialogflow Messenger -->
-  <df-messenger
-      id="df-widget"
-      location="us-east1"
-      project-id="l2-np-dialogflow2-us-es1-desa"
-      agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
-      language-code="es">
-    <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
-  </df-messenger>
+<df-messenger
+    id="df-widget"
+    location="us-east1"
+    project-id="l2-np-dialogflow2-us-es1-desa"
+    agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
+    language-code="es">
+  <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
+</df-messenger>
 
-  <!-- Script para auditoría de variables y renderizado de Payloads -->
-  <script>
-    const dfMessenger = document.querySelector('df-messenger');
+<script>
+  // 1. Interceptamos la respuesta HTTP nativa antes de que el webchat la procese
+  const originalFetch = window.fetch;
 
-    // Escuchar toda respuesta recibida desde Dialogflow CX
-    dfMessenger.addEventListener('df-response-received', function (event) {
-      const response = event.detail.response;
-      const queryResult = response?.queryResult;
+  window.fetch = async function(...args) {
+    const response = await originalFetch.apply(this, args);
+    const url = args[0] ? args[0].toString() : '';
 
-      // -------------------------------------------------------------
-      // LOGS EN CONSOLA DE INSPECCIONAR
-      // -------------------------------------------------------------
-      console.group("%c🤖 DIALOGFLOW CX - DETALLES DE RESPUESTA", "color: #B93221; font-weight: bold; font-size: 13px;");
+    // Si la llamada es a la API de Dialogflow CX
+    if (url.includes('dialogflow') || url.includes('detectIntent') || url.includes('query')) {
+      const clone = response.clone();
       
-      // 1. ID de Sesión
-      console.log("🆔 Session ID:", response?.session || "No disponible en la raíz");
-
-      // 2. Parámetros de Sesión ($session.params)
-      console.log("📊 Parámetros ($session.params):", queryResult?.parameters || "Sin parámetros");
-
-      // 3. Info de Diagnóstico / Tracing de Playbooks
-      console.log("🔍 Diagnostic Info / Traces:", queryResult?.diagnosticInfo || "Sin info de diagnóstico");
-
-      // 4. Mensajes devueltos
-      console.log("💬 Messages:", queryResult?.responseMessages || []);
-
-      // 5. Objeto Raw Completo
-      console.log("📦 Objeto Raw Completo:", response);
-
-      console.groupEnd();
-
-      // -------------------------------------------------------------
-      // PROCESAMIENTO Y RENDERIZADO DE CUSTOM PAYLOADS
-      // -------------------------------------------------------------
       try {
-        const messages = queryResult?.responseMessages;
-        if (!messages) return;
+        const data = await clone.json();
 
-        messages.forEach(msg => {
-          if (msg.payload) {
-            renderPayload(msg.payload);
-          }
+        // 2. Modificamos el JSON de respuesta en memoria
+        if (data.queryResult && data.queryResult.responseMessages) {
+          data.queryResult.responseMessages.forEach(msg => {
+            if (msg.payload && msg.payload.actions) {
+              // Convertimos el JSON personalizado a Rich Content nativo
+              msg.payload = transformPayloadToRichContent(msg.payload);
+            }
+          });
+        }
+
+        // 3. Devolvemos la respuesta modificada al webchat
+        return new Response(JSON.stringify(data), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers
         });
+
       } catch (err) {
-        console.error("Error al procesar el payload:", err);
+        console.error("Error al interceptar y modificar el JSON:", err);
       }
-    });
+    }
 
-    // Función para extraer textos, enlaces y botones del payload
-    function renderPayload(payload) {
-      const text = payload.text || payload.title || '';
-      const actions = payload.actions || payload.buttons || payload.links || payload.options || [];
+    return response;
+  };
 
-      if (Array.isArray(actions) && actions.length > 0) {
-        actions.forEach(action => {
-          const btnText = action.text || action.label || 'Ver información';
-          const url = action.uri || action.url || action.link || '#';
-          
-          insertCardInChat(text, btnText, url);
+  // Función que transforma tu JSON actual al formato nativo Rich Content
+  function transformPayloadToRichContent(customPayload) {
+    const richContentBlocks = [];
+
+    // Si viene texto principal
+    if (customPayload.text) {
+      richContentBlocks.push({
+        type: "info",
+        title: customPayload.text
+      });
+    }
+
+    // Convertimos cada elemento de "actions" a un botón nativo
+    if (Array.isArray(customPayload.actions)) {
+      customPayload.actions.forEach(action => {
+        richContentBlocks.push({
+          type: "button",
+          icon: {
+            type: "chevron_right",
+            color: "#B93221"
+          },
+          text: action.text || "Ver enlace",
+          link: action.uri || action.url || action.link || "#"
         });
-      }
+      });
     }
 
-    // Inserción dinámica de tarjetas en el DOM del Webchat
-    function insertCardInChat(text, btnText, url) {
-      setTimeout(() => {
-        const chatWrapper = dfMessenger.shadowRoot
-          ? dfMessenger.shadowRoot.querySelector('df-messenger-chat')
-          : document.querySelector('df-messenger-chat');
-
-        if (!chatWrapper) return;
-
-        const messageList = chatWrapper.shadowRoot 
-          ? chatWrapper.shadowRoot.querySelector('.chat-wrapper') || chatWrapper.shadowRoot.querySelector('.message-list') || chatWrapper.shadowRoot
-          : chatWrapper;
-
-        const cardElement = document.createElement('div');
-        cardElement.className = 'custom-card-container';
-        cardElement.innerHTML = `
-          ${text ? `<div class="custom-card-text">${text}</div>` : ''}
-          <a class="custom-card-btn" href="${url}" target="_blank" rel="noopener noreferrer">
-            ${btnText}
-          </a>
-        `;
-
-        messageList.appendChild(cardElement);
-      }, 150);
-    }
-  </script>
+    return {
+      richContent: [ richContentBlocks ]
+    };
+  }
+</script>
 
 </body>
 </html>
