@@ -2,11 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>La Segunda - Fix Final</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>La Segunda - Webchat</title>
+  
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
+  
   <style>
     body { margin: 0; }
+    
     df-messenger {
       z-index: 999;
       position: fixed;
@@ -16,17 +20,152 @@
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
     }
+
+    /* Estilos dinámicos para cualquier Custom Payload con botones */
+    .df-custom-card {
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 8px 0;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      max-width: 90%;
+    }
+    
+    .df-custom-title {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .df-custom-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .df-custom-btn {
+      display: inline-block;
+      background-color: #B93221; /* Rojo corporativo La Segunda */
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      transition: background-color 0.2s;
+    }
+
+    .df-custom-btn:hover {
+      background-color: #922518;
+    }
   </style>
 </head>
 <body>
 
 <df-messenger
+    id="df-widget"
     location="us-east1"
     project-id="l2-np-dialogflow2-us-es1-desa"
     agent-id="93ea4d6a-4948-41b7-a2a2-e6dc1a3a37d0"
     language-code="es">
   <df-messenger-chat chat-title="LaSegunda-clientes-v4"></df-messenger-chat>
 </df-messenger>
+
+<script>
+  const dfMessenger = document.querySelector('df-messenger');
+
+  // Escuchar cuando Dialogflow envía una respuesta
+  dfMessenger.addEventListener('df-response-received', function (event) {
+    try {
+      const messages = event.detail.response.queryResult?.responseMessages;
+      if (!messages) return;
+
+      messages.forEach(msg => {
+        if (msg.payload) {
+          parseAndRenderPayload(msg.payload);
+        }
+      });
+    } catch (e) {
+      console.error('Error interpretando el custom payload:', e);
+    }
+  });
+
+  // Función genérica para interpretar cualquier payload de tipo Botón o Link
+  function parseAndRenderPayload(payload) {
+    let text = payload.text || payload.title || '';
+    let buttons = [];
+
+    // 1. Detectar si viene con propiedad 'actions', 'buttons', 'links' u 'options'
+    const items = payload.actions || payload.buttons || payload.links || payload.options || [];
+
+    if (Array.isArray(items) && items.length > 0) {
+      buttons = items.map(item => ({
+        text: item.text || item.title || item.label || 'Ver más',
+        url: item.uri || item.url || item.link || item.event || '#'
+      }));
+    }
+
+    // 2. Si es formato genérico RichContent estándar de Dialogflow
+    if (payload.richContent && Array.isArray(payload.richContent)) {
+      payload.richContent.flat().forEach(element => {
+        if (element.type === 'info') text = element.title || text;
+        if (element.type === 'button' || element.type === 'chips') {
+          buttons.push({
+            text: element.text || 'Abrir',
+            url: element.link || element.options?.[0]?.link || '#'
+          });
+        }
+      });
+    }
+
+    // Si encontramos botones para renderizar, los dibujamos
+    if (buttons.length > 0) {
+      renderButtonCard(text, buttons);
+    }
+  }
+
+  // Renderizador HTML en el chat
+  function renderButtonCard(title, buttons) {
+    setTimeout(() => {
+      const chatWrapper = dfMessenger.shadowRoot
+        ? dfMessenger.shadowRoot.querySelector('df-messenger-chat')
+        : document.querySelector('df-messenger-chat');
+
+      if (!chatWrapper) return;
+
+      // Crear HTML de los botones
+      const buttonsHtml = buttons.map(btn => `
+        <a class="df-custom-btn" href="${btn.url}" target="_blank" rel="noopener noreferrer">
+          ${btn.text}
+        </a>
+      `).join('');
+
+      const cardHtml = `
+        <div class="df-custom-card">
+          ${title ? `<div class="df-custom-title">${title}</div>` : ''}
+          <div class="df-custom-actions">
+            ${buttonsHtml}
+          </div>
+        </div>
+      `;
+
+      // Insertar en la lista de mensajes
+      const messageList = chatWrapper.shadowRoot 
+        ? chatWrapper.shadowRoot.querySelector('.chat-wrapper') || chatWrapper.shadowRoot
+        : chatWrapper;
+
+      const cardContainer = document.createElement('div');
+      cardContainer.innerHTML = cardHtml;
+      messageList.appendChild(cardContainer);
+    }, 150);
+  }
+</script>
 
 </body>
 </html>
