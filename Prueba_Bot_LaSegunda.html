@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Segunda - Webchat</title>
 
-  <!-- Librería y estilos oficiales de Dialogflow CX (v1) -->
-  <script src="[https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js](https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js)"></script>
-  <link rel="stylesheet" href="[https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css](https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css)">
+  <!-- Librería y estilos oficiales de Dialogflow CX -->
+  <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
+  <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 
   <style>
     body {
@@ -26,7 +26,7 @@
       --df-messenger-chat-window-width: 80vw;
     }
 
-    /* Estilos para imitar la tarjeta de WhatsApp */
+    /* Estilos réplica exactos de la tarjeta de WhatsApp */
     .whatsapp-card {
       background-color: #ffffff;
       border: 1px solid #e0e0e0;
@@ -100,13 +100,12 @@
       }
     });
 
-    // Función para renderizar la tarjeta con el botón
+    // Función para renderizar la tarjeta con el botón estilo WhatsApp
     function renderWhatsAppStyleCard(payload) {
       setTimeout(() => {
         const dfWidget = document.querySelector('df-messenger');
         if (!dfWidget) return;
 
-        // Acceder al contenedor interno a través de Shadow DOM
         const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
         const chatWrapper = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
 
