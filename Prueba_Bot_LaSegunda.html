@@ -5,16 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Segunda - Webchat</title>
 
-  <!-- Librería y estilos oficiales de Dialogflow CX -->
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 
   <style>
-    body { 
-      margin: 0; 
-      font-family: Arial, sans-serif; 
-    }
-
+    body { margin: 0; font-family: Arial, sans-serif; }
     df-messenger {
       z-index: 999;
       position: fixed;
@@ -23,6 +18,33 @@
       transform: translateX(-50%);
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
+    }
+
+    .custom-card-container {
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 8px 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      max-width: 85%;
+    }
+
+    .custom-card-text {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .custom-card-btn {
+      display: inline-block;
+      background-color: #B93221;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -38,71 +60,72 @@
 </df-messenger>
 
 <script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const dfMessenger = document.querySelector('df-messenger');
+  // Log de confirmación inmediata al cargar el archivo
+  console.log("%c🔥 SCRIPT DE CAPTURA INICIALIZADO", "background: #222; color: #bada55; font-size: 14px; font-weight: bold;");
 
-    dfMessenger.addEventListener('df-response-received', function (event) {
-      console.group("%c🔎 AUDITORÍA DE PAYLOAD - DF RESPONSE RECEIVED", "color: #B93221; font-weight: bold; font-size: 13px;");
-      
-      // 1. Objeto de evento completo
-      console.log("📄 Event Detail:", event.detail);
+  // Escuchar cualquier evento que empiece con 'df-' en la ventana global
+  window.addEventListener('df-response-received', function (event) {
+    console.group("%c🔎 CAPTURADO: df-response-received", "color: #B93221; font-weight: bold; font-size: 14px;");
+    
+    // Inspeccionar la estructura completa
+    console.log("📄 Raw Event:", event);
+    console.log("📦 Event Detail:", event.detail);
 
-      // 2. Extraer mensajes y payloads
-      const messages = event.detail?.messages || event.detail?.raw?.queryResult?.responseMessages;
-      console.log("💬 Lista de mensajes recibidos:", messages);
+    // Extraer mensajes según las distintas estructuras posibles de v1
+    const messages = 
+      event.detail?.raw?.queryResult?.responseMessages || 
+      event.detail?.data?.queryResult?.responseMessages ||
+      event.detail?.messages || 
+      [];
 
-      if (messages && Array.isArray(messages)) {
-        messages.forEach((msg, idx) => {
-          if (msg.payload) {
-            console.log(`📦 Payload en mensaje [${idx}]:`, msg.payload);
-            
-            // Intentar renderizar si tiene 'actions'
-            if (msg.payload.actions) {
-              console.log("🎨 Intentando renderizar botones de 'actions'...");
-              renderCustomActions(msg.payload);
-            }
-          }
-        });
+    console.log("💬 Mensajes procesados:", messages);
+
+    messages.forEach((msg, idx) => {
+      if (msg.payload) {
+        console.log(`📦 Payload en mensaje [${idx}]:`, msg.payload);
+        
+        // Si detecta 'actions', dibujar el botón
+        if (msg.payload.actions) {
+          renderCustomCard(msg.payload);
+        }
       }
-
-      console.groupEnd();
     });
-  });
 
-  // Función para forzar la creación de los botones en el Webchat
-  function renderCustomActions(payload) {
+    console.groupEnd();
+  }, true); // Usar fase de captura (true)
+
+  function renderCustomCard(payload) {
     setTimeout(() => {
-      const dfMessenger = document.querySelector('df-messenger');
-      if (!dfMessenger) return;
+      const dfWidget = document.querySelector('df-messenger');
+      if (!dfWidget) return;
 
-      // Buscar el contenedor interno de mensajes
-      const chat = dfMessenger.shadowRoot ? dfMessenger.shadowRoot.querySelector('df-messenger-chat') : null;
-      const messageList = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot : null;
+      // Navegar a través de los Shadow DOMs de df-messenger v1
+      const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
+      const chatWrapper = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
 
-      if (!messageList) {
-        console.error("❌ No se encontró el contenedor de chat en el ShadowDOM.");
+      if (!chatWrapper) {
+        console.warn("⚠️ No se pudo acceder al contenedor del chat en el ShadowDOM.");
         return;
       }
 
-      const card = document.createElement('div');
-      card.style.cssText = "background: #fff; border: 1px solid #ccc; padding: 10px; margin: 8px; border-radius: 8px;";
+      const container = document.createElement('div');
+      container.className = 'custom-card-container';
       
-      let html = payload.text ? `<p style="margin: 0 0 8px 0; font-size: 14px;">${payload.text}</p>` : '';
+      let html = payload.text ? `<div class="custom-card-text">${payload.text}</div>` : '';
       
       if (Array.isArray(payload.actions)) {
         payload.actions.forEach(action => {
           html += `
-            <a href="${action.uri || '#'}" target="_blank" 
-               style="display: inline-block; background: #B93221; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold;">
-               ${action.text || 'Ver'}
+            <a class="custom-card-btn" href="${action.uri || '#'}" target="_blank" rel="noopener noreferrer">
+              ${action.text || 'Ver'}
             </a>`;
         });
       }
 
-      card.innerHTML = html;
-      messageList.appendChild(card);
-      console.log("✅ Botón/Payload insertado dinámicamente en la pantalla.");
-    }, 300);
+      container.innerHTML = html;
+      chatWrapper.appendChild(container);
+      console.log("✅ Tarjeta inyectada en el chat con éxito.");
+    }, 200);
   }
 </script>
 
