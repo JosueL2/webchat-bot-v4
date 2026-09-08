@@ -26,7 +26,6 @@
       --df-messenger-chat-window-width: 80vw;
     }
 
-    /* Estilo de la tarjeta réplica de WhatsApp */
     .custom-whatsapp-card {
       background-color: #ffffff;
       border: 1px solid #e0e0e0;
@@ -74,9 +73,11 @@
   </df-messenger>
 
   <script>
+    // Limpieza forzada de sesión corrompida al cargar
+    sessionStorage.clear();
+
     const URL_COTIZAR = "https://www.lasegundaonline.com.ar/?utm_source=Whatsapp&utm_medium=wspatcliene&utm_campaign=cotizonlineatclientewsp&utm_id=cotizwspatcliente";
 
-    // Escuchar respuestas recibidas desde el evento nativo de Dialogflow
     window.addEventListener('df-response-received', function (event) {
       try {
         const rawMessages = event.detail?.raw?.queryResult?.responseMessages 
@@ -85,13 +86,10 @@
                          || [];
 
         rawMessages.forEach(msg => {
-          // 1. Si trae un Custom Payload con 'actions' (WhatsApp)
           if (msg.payload && msg.payload.actions) {
             const action = msg.payload.actions[0] || {};
             renderCardInChat(msg.payload.text, action.uri || URL_COTIZAR, action.text || "Cotizar");
-          } 
-          // 2. Si trae un texto estándar relativo a la cotización
-          else if (msg.text && Array.isArray(msg.text.text)) {
+          } else if (msg.text && Array.isArray(msg.text.text)) {
             const fullText = msg.text.text.join(" ");
             if (fullText.includes("cotización en lugar de hacerlo por la web")) {
               renderCardInChat(
@@ -112,11 +110,9 @@
         const dfWidget = document.querySelector('df-messenger');
         if (!dfWidget) return;
 
-        // Intentar ubicar el wrapper interno
         const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
         if (!chat) return;
 
-        // En v1, df-messenger deja insertar elementos directamente como hijos de df-messenger-chat
         const cardContainer = document.createElement('div');
         cardContainer.className = 'custom-whatsapp-card';
         cardContainer.innerHTML = `
