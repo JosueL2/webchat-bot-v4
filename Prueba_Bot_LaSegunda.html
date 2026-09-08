@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Segunda - Webchat</title>
 
-  <!-- Librería y estilos oficiales de Dialogflow CX (v1) -->
+  <!-- Librería y estilos oficiales de Dialogflow CX -->
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 
@@ -25,6 +25,49 @@
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
     }
+
+    /* Estilos réplica exacta de WhatsApp */
+    .whatsapp-card {
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      font-family: Arial, sans-serif;
+      box-sizing: border-box;
+    }
+
+    .whatsapp-card-text {
+      font-size: 14px;
+      color: #222222;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .whatsapp-card-divider {
+      border-top: 1px solid #eeeeee;
+      margin: 8px 0;
+    }
+
+    .whatsapp-card-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background-color: transparent;
+      color: #B93221;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 14px;
+      padding: 6px 0;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    .whatsapp-card-btn:hover {
+      background-color: #f5f5f5;
+    }
   </style>
 </head>
 <body>
@@ -39,66 +82,52 @@
   </df-messenger>
 
   <script>
-    // Escuchar cuando Dialogflow recibe una respuesta
-    window.addEventListener('df-response-received', function (event) {
-      try {
-        const responseMessages = event.detail?.raw?.queryResult?.responseMessages 
-                              || event.detail?.data?.queryResult?.responseMessages 
-                              || event.detail?.messages 
-                              || [];
+    const URL_COTIZAR = "https://www.lasegundaonline.com.ar/?utm_source=Whatsapp&utm_medium=wspatcliene&utm_campaign=cotizonlineatclientewsp&utm_id=cotizwspatcliente";
 
-        responseMessages.forEach(msg => {
-          // Detectar si la respuesta es un payload con formato 'actions' (WhatsApp)
-          if (msg.payload && msg.payload.actions) {
-            console.log("🎯 Payload con 'actions' detectado:", msg.payload);
-            injectNativeRichContent(msg.payload);
-          }
-        });
-      } catch (e) {
-        console.error("Error al procesar la respuesta:", e);
-      }
-    }, true);
-
-    // Renderizar la estructura nativa Rich Content dentro del ShadowDOM
-    function injectNativeRichContent(payload) {
-      setTimeout(() => {
+    // Observador continuo de la pantalla del Chat
+    window.addEventListener('load', () => {
+      setInterval(() => {
         const dfWidget = document.querySelector('df-messenger');
         if (!dfWidget) return;
 
+        // Entrar a través del Shadow DOM de df-messenger v1
         const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
-        const chatWrapper = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
+        if (!chat) return;
 
+        const chatWrapper = chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
         if (!chatWrapper) return;
 
-        // Construir elemento con la etiqueta nativa <df-card> o <df-info-card> que usa Dialogflow
-        const cardContainer = document.createElement('div');
-        cardContainer.style.cssText = "margin: 8px 16px; font-family: Arial, sans-serif;";
+        // Buscar todos los globos de texto mostrados en pantalla
+        const messages = chatWrapper.querySelectorAll('div, .message, .df-message-bubble');
 
-        let buttonHtml = '';
-        if (Array.isArray(payload.actions)) {
-          payload.actions.forEach(act => {
-            buttonHtml += `
-              <div style="border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; text-align: center;">
-                <a href="${act.uri || '#'}" target="_blank" rel="noopener noreferrer" 
-                   style="color: #B93221; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; width: 100%;">
-                   🔗 ${act.text || 'Cotizar'}
-                </a>
+        messages.forEach(msgNode => {
+          const content = msgNode.innerText || msgNode.textContent || '';
+
+          // Si el bot mostró el mensaje de cotización y aún no le agregamos la tarjeta arriba
+          if (content.includes("¿Preferís que un asesor te ayude con la cotización en lugar de hacerlo por la web?") && !msgNode.classList.contains('card-attached')) {
+            
+            // Marcar el nodo como ya procesado para no duplicar
+            msgNode.classList.add('card-attached');
+
+            // Crear la tarjeta de WhatsApp
+            const card = document.createElement('div');
+            card.className = 'whatsapp-card';
+            card.innerHTML = `
+              <div class="whatsapp-card-text">
+                Cotizá tu seguro: Auto, Hogar, Accidentes Personales, Vida, Retiro ¡y más!😉
               </div>
+              <div class="whatsapp-card-divider"></div>
+              <a class="whatsapp-card-btn" href="${URL_COTIZAR}" target="_blank" rel="noopener noreferrer">
+                <span>🔗</span> Cotizar
+              </a>
             `;
-          });
-        }
 
-        cardContainer.innerHTML = `
-          <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="font-size: 14px; color: #222; margin-bottom: 6px;">${payload.text || ''}</div>
-            ${buttonHtml}
-          </div>
-        `;
-
-        chatWrapper.appendChild(cardContainer);
-        console.log("✅ Componente Rich Content inyectado con éxito.");
-      }, 200);
-    }
+            // Insertarla justo antes del texto de las opciones
+            msgNode.parentNode.insertBefore(card, msgNode);
+          }
+        });
+      }, 500); // Revisa la pantalla cada medio segundo
+    });
   </script>
 
 </body>
