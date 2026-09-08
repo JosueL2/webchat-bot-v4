@@ -38,7 +38,7 @@
 </df-messenger>
 
 <script>
-  // 1. Interceptamos la respuesta HTTP nativa antes de que el webchat la procese
+  // Interceptamos la respuesta HTTP nativa antes de que el webchat la procese
   const originalFetch = window.fetch;
 
   window.fetch = async function(...args) {
@@ -52,17 +52,22 @@
       try {
         const data = await clone.json();
 
-        // 2. Modificamos el JSON de respuesta en memoria
+        console.group("%c🤖 DIALOGFLOW CX - INTERCEPTOR DE RED", "color: #B93221; font-weight: bold; font-size: 13px;");
+        console.log("📦 Data recibida de Dialogflow:", data);
+
+        // Modificamos el JSON de respuesta en memoria
         if (data.queryResult && data.queryResult.responseMessages) {
           data.queryResult.responseMessages.forEach(msg => {
             if (msg.payload && msg.payload.actions) {
-              // Convertimos el JSON personalizado a Rich Content nativo
+              console.log("🛠️ Custom Payload con 'actions' detectado. Transformando a richContent...");
               msg.payload = transformPayloadToRichContent(msg.payload);
             }
           });
         }
+        
+        console.groupEnd();
 
-        // 3. Devolvemos la respuesta modificada al webchat
+        // Devolvemos la respuesta modificada al webchat
         return new Response(JSON.stringify(data), {
           status: response.status,
           statusText: response.statusText,
@@ -77,11 +82,10 @@
     return response;
   };
 
-  // Función que transforma tu JSON actual al formato nativo Rich Content
+  // Función que transforma tu JSON personalizado al formato nativo Rich Content
   function transformPayloadToRichContent(customPayload) {
     const richContentBlocks = [];
 
-    // Si viene texto principal
     if (customPayload.text) {
       richContentBlocks.push({
         type: "info",
@@ -89,7 +93,6 @@
       });
     }
 
-    // Convertimos cada elemento de "actions" a un botón nativo
     if (Array.isArray(customPayload.actions)) {
       customPayload.actions.forEach(action => {
         richContentBlocks.push({
