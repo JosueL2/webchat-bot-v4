@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Segunda - Webchat</title>
 
-  <!-- Librería y estilos oficiales de Dialogflow CX -->
+  <!-- Librería y estilos oficiales de Dialogflow CX (v1) -->
   <script src="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js"></script>
   <link rel="stylesheet" href="https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css">
 
@@ -25,49 +25,6 @@
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
     }
-
-    /* Estilos réplica de WhatsApp */
-    .whatsapp-card {
-      background-color: #ffffff;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 12px;
-      margin: 8px 0;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-      font-family: Arial, sans-serif;
-      max-width: 85%;
-    }
-
-    .whatsapp-card-text {
-      font-size: 14px;
-      color: #222222;
-      line-height: 1.4;
-      margin-bottom: 10px;
-    }
-
-    .whatsapp-card-divider {
-      border-top: 1px solid #eeeeee;
-      margin: 8px 0;
-    }
-
-    .whatsapp-card-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background-color: transparent;
-      color: #B93221;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 14px;
-      padding: 6px 0;
-      border-radius: 4px;
-      transition: background-color 0.2s;
-    }
-
-    .whatsapp-card-btn:hover {
-      background-color: #f5f5f5;
-    }
   </style>
 </head>
 <body>
@@ -82,66 +39,115 @@
   </df-messenger>
 
   <script>
-    // Escuchar el evento de respuesta de Dialogflow CX
-    window.addEventListener('df-response-received', function (event) {
-      try {
-        // BUSQUEDA CLAVE: Extraemos directamente del objeto RAW sin filtrar
-        const rawMessages = event.detail?.raw?.queryResult?.responseMessages 
-                         || event.detail?.data?.queryResult?.responseMessages 
-                         || [];
+    // ------------------------------------------------------------------
+    // INTERCEPTADOR DE RED (XMLHttpRequest / Fetch)
+    // Transforma cualquier Custom Payload con "actions" a "richContent"
+    // ------------------------------------------------------------------
 
-        console.log("🔍 Mensajes detectados en RAW:", rawMessages);
+    // 1. Mapeador/Transformador de JSON
+    function convertActionsToRichContent(payload) {
+      const richContentInner = [];
 
-        rawMessages.forEach(msg => {
-          if (msg.payload && msg.payload.actions) {
-            console.log("🎯 Payload con actions encontrado en RAW:", msg.payload);
-            renderWhatsAppStyleCard(msg.payload);
-          }
+      // Si trae un texto principal
+      if (payload.text) {
+        richContentInner.push({
+          "type": "info",
+          "title": payload.text
         });
-      } catch (e) {
-        console.error("Error al procesar el mensaje raw:", e);
       }
-    }, true);
 
-    // Función para renderizar la tarjeta con el botón estilo WhatsApp
-    function renderWhatsAppStyleCard(payload) {
-      setTimeout(() => {
-        const dfWidget = document.querySelector('df-messenger');
-        if (!dfWidget) return;
+      // Si trae el array de "actions" (botones o links)
+      if (Array.isArray(payload.actions)) {
+        payload.actions.forEach(action => {
+          richContentInner.push({
+            "type": "button",
+            "icon": {
+              "type": "open_in_new",
+              "color": "#B93221"
+            },
+            "text": action.text || "Ver más",
+            "link": action.uri || action.url || action.link || "#"
+          });
+        });
+      }
 
-        const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
-        const chatWrapper = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
+      return {
+        "richContent": [ richContentInner ]
+      };
+    }
 
-        if (!chatWrapper) return;
+    // 2. Procesar respuesta del servidor
+    function modifyDialogflowResponse(jsonString) {
+      try {
+        const data = JSON.parse(jsonString);
 
-        // Evitar duplicados si ya existe
-        const cardId = "card-" + btoa(payload.text || "btn").substring(0, 10);
-        if (chatWrapper.querySelector("#" + cardId)) return;
-
-        const card = document.createElement('div');
-        card.id = cardId;
-        card.className = 'whatsapp-card';
-
-        let actionsHtml = '';
-        if (Array.isArray(payload.actions)) {
-          payload.actions.forEach(action => {
-            actionsHtml += `
-              <div class="whatsapp-card-divider"></div>
-              <a class="whatsapp-card-btn" href="${action.uri || '#'}" target="_blank" rel="noopener noreferrer">
-                <span>🔗</span> ${action.text || 'Cotizar'}
-              </a>
-            `;
+        if (data.queryResult && Array.isArray(data.queryResult.responseMessages)) {
+          data.queryResult.responseMessages.forEach(msg => {
+            // Si detectamos la estructura con 'actions' (formato WhatsApp)
+            if (msg.payload && msg.payload.actions) {
+              console.log("🛠️ Custom Payload con 'actions' detectado. Transformando a richContent nativo...", msg.payload);
+              msg.payload = convertActionsToRichContent(msg.payload);
+            }
           });
         }
-
-        card.innerHTML = `
-          <div class="whatsapp-card-text">${payload.text || ''}</div>
-          ${actionsHtml}
-        `;
-
-        chatWrapper.appendChild(card);
-      }, 200);
+        return JSON.stringify(data);
+      } catch (e) {
+        return jsonString;
+      }
     }
+
+    // 3. Interceptar llamadas XMLHttpRequest (XHR) de df-messenger
+    const XHR = XMLHttpRequest.prototype;
+    const open = XHR.open;
+    const send = XHR.send;
+
+    XHR.open = function(method, url) {
+      this._url = url;
+      return open.apply(this, arguments);
+    };
+
+    XHR.send = function(postData) {
+      this.addEventListener('readystatechange', function() {
+        if (this.readyState === 4 && this._url && (this._url.includes('dialogflow') || this._url.includes('detectIntent'))) {
+          try {
+            const modifiedResponseText = modifyDialogflowResponse(this.responseText);
+            
+            // Sobrescribir la propiedad responseText devuelta al componente
+            Object.defineProperty(this, 'responseText', {
+              get: function() { return modifiedResponseText; }
+            });
+            Object.defineProperty(this, 'response', {
+              get: function() { return modifiedResponseText; }
+            });
+          } catch (e) {
+            console.error("Error modificando respuesta XHR:", e);
+          }
+        }
+      });
+      return send.apply(this, arguments);
+    };
+
+    // 4. Interceptar llamadas Fetch de df-messenger
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+      const response = await originalFetch.apply(this, args);
+      const url = args[0] ? args[0].toString() : '';
+
+      if (url.includes('dialogflow') || url.includes('detectIntent')) {
+        const clone = response.clone();
+        try {
+          const text = await clone.text();
+          const modifiedText = modifyDialogflowResponse(text);
+
+          return new Response(modifiedText, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers
+          });
+        } catch (e) {}
+      }
+      return response;
+    };
   </script>
 
 </body>
