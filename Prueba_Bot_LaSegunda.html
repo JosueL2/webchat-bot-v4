@@ -25,6 +25,41 @@
       width: 80%;
       --df-messenger-chat-window-width: 80vw;
     }
+
+    /* Estilo de la tarjeta réplica de WhatsApp */
+    .custom-whatsapp-card {
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      font-family: Arial, sans-serif;
+    }
+
+    .custom-whatsapp-title {
+      font-size: 14px;
+      color: #222222;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .custom-whatsapp-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 10px;
+      color: #B93221;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .custom-whatsapp-btn:hover {
+      background-color: #f9f9f9;
+    }
   </style>
 </head>
 <body>
@@ -39,64 +74,61 @@
   </df-messenger>
 
   <script>
-    // Interceptador global de Fetch/XHR que convierte 'actions' a 'richContent'
-    const originalFetch = window.fetch;
+    const URL_COTIZAR = "https://www.lasegundaonline.com.ar/?utm_source=Whatsapp&utm_medium=wspatcliene&utm_campaign=cotizonlineatclientewsp&utm_id=cotizwspatcliente";
 
-    window.fetch = async function(...args) {
-      const response = await originalFetch.apply(this, args);
-      const url = args[0] ? args[0].toString() : '';
+    // Escuchar respuestas recibidas desde el evento nativo de Dialogflow
+    window.addEventListener('df-response-received', function (event) {
+      try {
+        const rawMessages = event.detail?.raw?.queryResult?.responseMessages 
+                         || event.detail?.data?.queryResult?.responseMessages 
+                         || event.detail?.messages 
+                         || [];
 
-      if (url.includes('dialogflow') || url.includes('detectIntent') || url.includes('query')) {
-        const clone = response.clone();
-        
-        try {
-          const data = await clone.json();
-
-          // Modificamos el payload en memoria si viene con el formato de WhatsApp
-          if (data.queryResult && Array.isArray(data.queryResult.responseMessages)) {
-            data.queryResult.responseMessages.forEach(msg => {
-              if (msg.payload && msg.payload.actions) {
-                const text = msg.payload.text || "Cotizá tu seguro";
-                const action = msg.payload.actions[0] || {};
-
-                // Sobrescribimos el payload convirtiéndolo al formato que Webchat SI entiende
-                msg.payload = {
-                  "richContent": [
-                    [
-                      {
-                        "type": "info",
-                        "title": text
-                      },
-                      {
-                        "type": "button",
-                        "icon": {
-                          "type": "open_in_new",
-                          "color": "#B93221"
-                        },
-                        "text": action.text || "Cotizar",
-                        "link": action.uri || action.url || "#"
-                      }
-                    ]
-                  ]
-                };
-              }
-            });
+        rawMessages.forEach(msg => {
+          // 1. Si trae un Custom Payload con 'actions' (WhatsApp)
+          if (msg.payload && msg.payload.actions) {
+            const action = msg.payload.actions[0] || {};
+            renderCardInChat(msg.payload.text, action.uri || URL_COTIZAR, action.text || "Cotizar");
+          } 
+          // 2. Si trae un texto estándar relativo a la cotización
+          else if (msg.text && Array.isArray(msg.text.text)) {
+            const fullText = msg.text.text.join(" ");
+            if (fullText.includes("cotización en lugar de hacerlo por la web")) {
+              renderCardInChat(
+                "Cotizá tu seguro: Auto, Hogar, Accidentes Personales, Vida, Retiro ¡y más!😉",
+                URL_COTIZAR,
+                "Cotizar"
+              );
+            }
           }
-
-          // Devolvemos la respuesta modificada al Webchat
-          return new Response(JSON.stringify(data), {
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers
-          });
-
-        } catch (err) {
-          console.error("Error procesando intercepción:", err);
-        }
+        });
+      } catch (err) {
+        console.error("Error al procesar df-response-received:", err);
       }
+    }, true);
 
-      return response;
-    };
+    function renderCardInChat(titleText, buttonLink, buttonLabel) {
+      setTimeout(() => {
+        const dfWidget = document.querySelector('df-messenger');
+        if (!dfWidget) return;
+
+        // Intentar ubicar el wrapper interno
+        const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
+        if (!chat) return;
+
+        // En v1, df-messenger deja insertar elementos directamente como hijos de df-messenger-chat
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'custom-whatsapp-card';
+        cardContainer.innerHTML = `
+          <div class="custom-whatsapp-title">${titleText}</div>
+          <a class="custom-whatsapp-btn" href="${buttonLink}" target="_blank" rel="noopener noreferrer">
+            <span>🔗</span> ${buttonLabel}
+          </a>
+        `;
+
+        chat.appendChild(cardContainer);
+      }, 200);
+    }
   </script>
 
 </body>
