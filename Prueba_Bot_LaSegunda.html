@@ -39,115 +39,66 @@
   </df-messenger>
 
   <script>
-    // ------------------------------------------------------------------
-    // INTERCEPTADOR DE RED (XMLHttpRequest / Fetch)
-    // Transforma cualquier Custom Payload con "actions" a "richContent"
-    // ------------------------------------------------------------------
-
-    // 1. Mapeador/Transformador de JSON
-    function convertActionsToRichContent(payload) {
-      const richContentInner = [];
-
-      // Si trae un texto principal
-      if (payload.text) {
-        richContentInner.push({
-          "type": "info",
-          "title": payload.text
-        });
-      }
-
-      // Si trae el array de "actions" (botones o links)
-      if (Array.isArray(payload.actions)) {
-        payload.actions.forEach(action => {
-          richContentInner.push({
-            "type": "button",
-            "icon": {
-              "type": "open_in_new",
-              "color": "#B93221"
-            },
-            "text": action.text || "Ver más",
-            "link": action.uri || action.url || action.link || "#"
-          });
-        });
-      }
-
-      return {
-        "richContent": [ richContentInner ]
-      };
-    }
-
-    // 2. Procesar respuesta del servidor
-    function modifyDialogflowResponse(jsonString) {
+    // Escuchar cuando Dialogflow recibe una respuesta
+    window.addEventListener('df-response-received', function (event) {
       try {
-        const data = JSON.parse(jsonString);
+        const responseMessages = event.detail?.raw?.queryResult?.responseMessages 
+                              || event.detail?.data?.queryResult?.responseMessages 
+                              || event.detail?.messages 
+                              || [];
 
-        if (data.queryResult && Array.isArray(data.queryResult.responseMessages)) {
-          data.queryResult.responseMessages.forEach(msg => {
-            // Si detectamos la estructura con 'actions' (formato WhatsApp)
-            if (msg.payload && msg.payload.actions) {
-              console.log("🛠️ Custom Payload con 'actions' detectado. Transformando a richContent nativo...", msg.payload);
-              msg.payload = convertActionsToRichContent(msg.payload);
-            }
-          });
-        }
-        return JSON.stringify(data);
-      } catch (e) {
-        return jsonString;
-      }
-    }
-
-    // 3. Interceptar llamadas XMLHttpRequest (XHR) de df-messenger
-    const XHR = XMLHttpRequest.prototype;
-    const open = XHR.open;
-    const send = XHR.send;
-
-    XHR.open = function(method, url) {
-      this._url = url;
-      return open.apply(this, arguments);
-    };
-
-    XHR.send = function(postData) {
-      this.addEventListener('readystatechange', function() {
-        if (this.readyState === 4 && this._url && (this._url.includes('dialogflow') || this._url.includes('detectIntent'))) {
-          try {
-            const modifiedResponseText = modifyDialogflowResponse(this.responseText);
-            
-            // Sobrescribir la propiedad responseText devuelta al componente
-            Object.defineProperty(this, 'responseText', {
-              get: function() { return modifiedResponseText; }
-            });
-            Object.defineProperty(this, 'response', {
-              get: function() { return modifiedResponseText; }
-            });
-          } catch (e) {
-            console.error("Error modificando respuesta XHR:", e);
+        responseMessages.forEach(msg => {
+          // Detectar si la respuesta es un payload con formato 'actions' (WhatsApp)
+          if (msg.payload && msg.payload.actions) {
+            console.log("🎯 Payload con 'actions' detectado:", msg.payload);
+            injectNativeRichContent(msg.payload);
           }
-        }
-      });
-      return send.apply(this, arguments);
-    };
-
-    // 4. Interceptar llamadas Fetch de df-messenger
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-      const response = await originalFetch.apply(this, args);
-      const url = args[0] ? args[0].toString() : '';
-
-      if (url.includes('dialogflow') || url.includes('detectIntent')) {
-        const clone = response.clone();
-        try {
-          const text = await clone.text();
-          const modifiedText = modifyDialogflowResponse(text);
-
-          return new Response(modifiedText, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers
-          });
-        } catch (e) {}
+        });
+      } catch (e) {
+        console.error("Error al procesar la respuesta:", e);
       }
-      return response;
-    };
+    }, true);
+
+    // Renderizar la estructura nativa Rich Content dentro del ShadowDOM
+    function injectNativeRichContent(payload) {
+      setTimeout(() => {
+        const dfWidget = document.querySelector('df-messenger');
+        if (!dfWidget) return;
+
+        const chat = dfWidget.shadowRoot ? dfWidget.shadowRoot.querySelector('df-messenger-chat') : document.querySelector('df-messenger-chat');
+        const chatWrapper = chat && chat.shadowRoot ? chat.shadowRoot.querySelector('.chat-wrapper') || chat.shadowRoot.querySelector('.message-list') || chat.shadowRoot : null;
+
+        if (!chatWrapper) return;
+
+        // Construir elemento con la etiqueta nativa <df-card> o <df-info-card> que usa Dialogflow
+        const cardContainer = document.createElement('div');
+        cardContainer.style.cssText = "margin: 8px 16px; font-family: Arial, sans-serif;";
+
+        let buttonHtml = '';
+        if (Array.isArray(payload.actions)) {
+          payload.actions.forEach(act => {
+            buttonHtml += `
+              <div style="border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; text-align: center;">
+                <a href="${act.uri || '#'}" target="_blank" rel="noopener noreferrer" 
+                   style="color: #B93221; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; width: 100%;">
+                   🔗 ${act.text || 'Cotizar'}
+                </a>
+              </div>
+            `;
+          });
+        }
+
+        cardContainer.innerHTML = `
+          <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="font-size: 14px; color: #222; margin-bottom: 6px;">${payload.text || ''}</div>
+            ${buttonHtml}
+          </div>
+        `;
+
+        chatWrapper.appendChild(cardContainer);
+        console.log("✅ Componente Rich Content inyectado con éxito.");
+      }, 200);
+    }
   </script>
 
 </body>
